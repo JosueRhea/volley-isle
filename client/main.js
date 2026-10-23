@@ -141,6 +141,19 @@ for (const [el, key, onKey] of [
 addEventListener('click', (e) => {
   if (!e.target.closest('#sound') || e.target.closest('[data-open]')) setSoundOpen(false);
 });
+// The game ignores keys aimed at inputs, so a slider or checkbox that keeps focus after a click
+// would swallow the controls (arrows change the volume, Space flips the toggle). Let go of it once
+// the pointer is released; keyboard users who tab into the panel keep normal focus.
+addEventListener('pointerup', () =>
+  requestAnimationFrame(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement && el.closest('#sound-panel')) el.blur();
+  }),
+);
+// Back to playing: any key pressed outside the panel closes it.
+addEventListener('keydown', () => {
+  if (!soundPanel.classList.contains('hidden') && !soundPanel.contains(document.activeElement)) setSoundOpen(false);
+});
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyM' && !(e.target instanceof HTMLInputElement)) {
     music.start();
