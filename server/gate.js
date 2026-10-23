@@ -4,6 +4,9 @@
 //   3. Join tickets: rooms only accept connections carrying a short-lived HMAC-signed ticket,
 //      which is only handed out after (1) and (2) pass. Uses WebCrypto, so it runs in both hosts.
 const TICKET_TTL_MS = 60_000;
+// Rejoin tickets let a dropped player get back into their room without a new Turnstile check.
+// The room hands one out on join and refreshes it while the player is connected.
+export const REJOIN_TTL_MS = 15 * 60_000;
 const enc = new TextEncoder();
 
 export function originAllowed(origin, allowed) {
@@ -52,8 +55,8 @@ const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replac
 const fromB64url = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 
 // Ticket = "<expiry>.<signature over code|mode|expiry>"
-export async function signTicket(secret, code, mode) {
-  const exp = Date.now() + TICKET_TTL_MS;
+export async function signTicket(secret, code, mode, ttl = TICKET_TTL_MS) {
+  const exp = Date.now() + ttl;
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(`${code}|${mode}|${exp}`));
   return `${exp}.${b64url(sig)}`;
 }
@@ -71,3 +74,7 @@ export async function verifyTicket(secret, ticket, code, mode) {
 }
 
 export const JOIN_MODES = ['quick', 'create', 'tutorial', 'code'];
+// Reconnects use "rejoin-<original mode>", so a room that restarted (e.g. after a deploy) comes back
+// with the same settings.
+export const rejoinMode = (mode) => `rejoin-${mode}`;
+export const baseMode = (mode) => (typeof mode === 'string' && mode.startsWith('rejoin-') ? mode.slice(7) : mode);

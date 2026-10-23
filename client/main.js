@@ -264,16 +264,18 @@ function behindNet(b, cam) {
 
 // ---------- Network handlers ----------
 net.on('welcome', (m) => {
+  joinWait?.(null);
+  link = { code: m.code, mode: link?.code === m.code ? link.mode : joinMode, key: m.key, ticket: link?.code === m.code ? link.ticket : null };
+  state.myId = m.id;
+  state.myTeam = m.team;
+  if (state.joined) return; // a reconnect: we're already in the game
   world.sand.clear();
   world.resetCrowd();
-  joinWait?.(null);
   state.joined = true;
   if (m.tutorial) {
     tutorial = new Tutorial({ scene, net, sfx, state, me, input });
     tutorial.start();
   }
-  state.myId = m.id;
-  state.myTeam = m.team;
   lineup.forEach((c) => c.dispose(scene));
   director.sync(lobbyLook);
   hud.enterGame(m.code);
@@ -298,7 +300,7 @@ net.on('roster', (m) => {
       state.players.set(info.id, p);
     }
     p.info = info;
-    p.char.setLabel(info.name, info.id === state.myId);
+    p.char.setLabel(info.off ? `${info.name} …` : info.name, info.id === state.myId); // … = reconnecting
     if (info.id === state.myId) state.myTeam = info.team;
   }
   for (const [id, p] of state.players) {
@@ -316,6 +318,7 @@ net.on('notice', (m) => hud.toast(m.code ? t(`err.${m.code}`) : m.msg));
 let afkDeadline = 0;
 net.on('afk', (m) => (afkDeadline = m.s > 0 ? performance.now() + m.s * 1000 : 0));
 net.on('kicked', (m) => {
+  leaving = true;
   sessionStorage.setItem('volley:notice', m.reason);
   location.href = `${location.origin}/`;
 });
@@ -398,8 +401,66 @@ net.on('error', (m) => {
 });
 net.on('close', () => {
   joinWait?.('closed');
-  if (state.joined) hud.banner(t('ban.disconnected'), t('ban.refresh'), 1e9);
+  if (state.joined && !leaving) reconnect();
 });
+
+// ---------- Reconnect ----------
+// A dropped connection retries with exponential backoff (waiting for the network if we're offline),
+// using the rejoin ticket the room gave us, so we land back in our own spot. The server holds that
+// spot for 20s; after that (or if the room restarted) we come back as a new player in the same room.
+const RECONNECT = { attempts: 6, baseMs: 500, maxMs: 8000, welcomeMs: 8000 };
+let link = null; // { code, mode, key, ticket } for the room we're in
+let leaving = false; // navigating away / kicked: never reconnect
+let reconnecting = false;
+net.on('ticket', (m) => link && (link.ticket = m.ticket));
+addEventListener('pagehide', () => {
+  leaving = true;
+  net.send({ t: 'leave' }); // frees our spot right away instead of holding it
+});
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const online = () => navigator.onLine || new Promise((r) => addEventListener('online', r, { once: true }));
+
+async function reconnect() {
+  if (reconnecting) return;
+  reconnecting = true;
+  for (let attempt = 1; attempt <= RECONNECT.attempts && !leaving; attempt++) {
+    if (!link?.ticket) break;
+    hud.banner(t('ban.reconnecting'), t('ban.reconnectTry', { n: attempt, max: RECONNECT.attempts }), 1e9);
+    const delay = Math.min(RECONNECT.maxMs, RECONNECT.baseMs * 2 ** (attempt - 1));
+    await sleep(delay * (0.8 + Math.random() * 0.4));
+    await online();
+    if (leaving) break;
+    let result;
+    try {
+      await net.connect(`/ws/${encodeURIComponent(link.code)}?mode=rejoin-${link.mode}&ticket=${encodeURIComponent(link.ticket)}`);
+      const timer = setTimeout(() => joinWait?.('timeout'), RECONNECT.welcomeMs);
+      result = await new Promise((resolve) => {
+        joinWait = resolve;
+        net.send({ t: 'join', key: link.key, name: hud.name, char: picked });
+      });
+      clearTimeout(timer);
+      joinWait = null;
+    } catch {
+      continue; // couldn't open the socket: try again
+    }
+    if (result === null) {
+      reconnecting = false;
+      hud.banner(t('ban.reconnected'), '', 1200);
+      return;
+    }
+    net.close();
+    if (result !== 'closed' && result !== 'timeout') break; // the room said no (e.g. full): stop
+  }
+  reconnecting = false;
+  net.close();
+  if (!leaving) hud.banner(t('ban.disconnected'), t('ban.refresh'), 1e9);
+}
+
+// Snapshots arrive 30 times a second; silence means the connection is dead even if it looks open.
+setInterval(() => {
+  if (state.joined && !reconnecting && net.connected && performance.now() - net.lastMessageAt > 6000) net.drop();
+}, 1000);
 
 const SERVE_CALL_STYLE = { short: 'miss', long: 'miss', good: '', perfect: 'perfect' };
 const screenV = new THREE.Vector3();
@@ -573,6 +634,7 @@ async function joinSteps(mode) {
       }
       const joinInfo = await res.json();
       code = joinInfo.code;
+      joinMode = mode;
       setJoining(mode, 'connect');
       await net.connect(`/ws/${encodeURIComponent(code)}?mode=${mode}&ticket=${encodeURIComponent(joinInfo.ticket)}`);
     } catch {
@@ -595,6 +657,7 @@ async function joinSteps(mode) {
   }
 }
 let joinWait = null; // resolves with an error code, or null once we're welcomed
+let joinMode = null; // how we got into the current room (reconnects reuse it)
 document.getElementById('btn-quick').onclick = () => join('quick');
 document.getElementById('btn-tutorial').onclick = () => join('tutorial');
 document.getElementById('tut-play').onclick = () => (location.href = `${location.origin}/?play=quick`);

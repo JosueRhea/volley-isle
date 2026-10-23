@@ -15,6 +15,8 @@ let nextId = 1;
 // Anti-AFK: players who don't move or press anything get a warning, then are sent back to the title.
 export const AFK_WARN_MS = 270_000;
 export const AFK_KICK_MS = 300_000;
+// A player whose connection drops keeps their spot this long, so a reconnect puts them right back.
+export const RECONNECT_GRACE_MS = 20_000;
 // Movement check: clients report their own position, so the server only accepts what's physically possible.
 const MOVE_RATE = PLAYER.speed * 1.4; // m/s of movement budget (a bit of slack for network jitter)
 const MOVE_BURST = 3; // m: max saved-up budget (covers lag spikes / bursts of packets)
@@ -45,6 +47,8 @@ export class Room {
     this.clock = null; // seconds left in a timed match (null in points mode / outside matches)
     this.suddenDeath = false;
     this.players = [];
+    this.sockets = new Set(); // every open connection, joined or not (hosts close them on shutdown)
+    this.emptyFor = 0; // seconds without a single human (the hosts' idle watchdog reads this)
     this.hostId = null;
     this.fillCpu = true;
     this.score = [0, 0];
@@ -84,6 +88,7 @@ export class Room {
     const h = homePos(team, slot);
     return {
       id: nextId++, name, team, slot, bot: !ws, ws,
+      key: ws ? crypto.randomUUID() : null, heldUntil: 0, gone: false, // reconnect identity / state
       x: h.x, y: 0, z: h.z, vy: 0, ry: 0, mx: 0, mz: 0, aimF: 0, aimZ: 0,
       swingT: 0, cooldown: 0, hitCount: 0, ignoreUntil: 0, dive: 0, diveT: -1, servePower: 0.6, tipNext: false, blockCd: 0,
       lastActive: Date.now(), afkWarned: false, moveBudget: MOVE_BURST, lastInputAt: Date.now(), chargeAt: null,
@@ -136,12 +141,57 @@ export class Room {
       if (this.tutorial) this.players.push(this.makeBot(team, 1 - slot)); // your practice partner
       this.hostId ??= p.id;
       this.rosterDirty = true;
-      this.send(p, { t: 'welcome', id: p.id, code: this.code, team, isPublic: this.isPublic, tutorial: this.tutorial });
+      this.welcome(p);
       const h = homePos(team, slot);
       this.teleport(p, h.x, h.z);
       return p;
     }
     return null;
+  }
+
+  welcome(p) {
+    this.send(p, { t: 'welcome', id: p.id, key: p.key, code: this.code, team: p.team, isPublic: this.isPublic, tutorial: this.tutorial });
+  }
+
+  // The connection dropped: keep the spot (standing still) until the grace period runs out.
+  hold(p) {
+    if (!this.players.includes(p)) return;
+    p.ws = null;
+    p.heldUntil = Date.now() + RECONNECT_GRACE_MS;
+    Object.assign(p, { mx: 0, mz: 0, aimF: 0, aimZ: 0 });
+    this.rosterDirty = true;
+  }
+
+  // A reconnect with the secret key of a player we're holding (or whose old socket is half-dead).
+  reattach(key, ws) {
+    const p = this.players.find((q) => !q.bot && q.key === key);
+    if (!p || p.gone) return null;
+    const old = p.ws;
+    p.ws = ws;
+    p.heldUntil = 0;
+    p.lastInputAt = Date.now();
+    this.markActive(p);
+    try {
+      old?.close(4002, 'replaced');
+    } catch {
+      // already gone
+    }
+    this.rosterDirty = true;
+    this.welcome(p);
+    this.teleport(p, p.x, p.z);
+    return p;
+  }
+
+  // Kicks don't wait for the socket's close event (a dead connection may never send one).
+  kick(p, reason, closeCode) {
+    p.gone = true;
+    this.send(p, { t: 'kicked', reason });
+    try {
+      p.ws?.close(closeCode, reason);
+    } catch {
+      // already gone
+    }
+    this.removeHuman(p);
   }
 
   removeHuman(p) {
@@ -379,12 +429,7 @@ export class Room {
 
   removeBot(p, median) {
     console.warn(`[${this.code}] removed ${p.name}: median reaction ${median}ms over ${p.reactions.length} samples (automated play)`);
-    this.send(p, { t: 'kicked', reason: 'bot' });
-    try {
-      p.ws.close(4001, 'bot');
-    } catch {
-      // already gone
-    }
+    this.kick(p, 'bot', 4001);
   }
 
   markActive(p) {
@@ -403,23 +448,23 @@ export class Room {
   }
 
   // Warn idle players, then send them back to the title. Called about once a second.
+  // Also lets go of dropped players who didn't come back, and counts how long the room's been empty.
   checkAfk() {
     const now = Date.now();
-    for (const p of this.players) {
+    for (const p of [...this.players]) {
       if (p.bot) continue;
       const idle = now - p.lastActive;
-      if (idle > AFK_KICK_MS) {
-        this.send(p, { t: 'kicked', reason: 'afk' });
-        try {
-          p.ws.close(4000, 'afk');
-        } catch {
-          // already gone
-        }
+      if (p.heldUntil && now > p.heldUntil) {
+        p.gone = true;
+        this.removeHuman(p);
+      } else if (idle > AFK_KICK_MS) {
+        this.kick(p, 'afk', 4000);
       } else if (idle > AFK_WARN_MS && !p.afkWarned) {
         p.afkWarned = true;
         this.send(p, { t: 'afk', s: Math.round((AFK_KICK_MS - idle) / 1000) });
       }
     }
+    this.emptyFor = this.humanCount ? 0 : this.emptyFor + 1;
   }
 
   teleport(p, x, z) {
@@ -758,7 +803,7 @@ export class Room {
         rules: this.rules,
         isPublic: this.isPublic,
         teamSize: TEAM_SIZE,
-        players: this.players.map(({ id, name, team, slot, bot, look }) => ({ id, name, team, slot, bot, look })),
+        players: this.players.map(({ id, name, team, slot, bot, look, heldUntil }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0 })),
       }));
     }
     const b = this.ball;

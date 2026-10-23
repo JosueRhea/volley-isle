@@ -6,9 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Room } from './room.js';
-import { attach, rejectSocket, roomOptions, MAX_HUMANS } from './session.js';
+import { attach, admit, rejectSocket, roomOptions, MAX_HUMANS, EMPTY_ROOM_S } from './session.js';
 import { newCode, CODE_RE } from './codes.js';
-import { originAllowed, verifyTurnstile, signTicket, verifyTicket, listFrom, JOIN_MODES } from './gate.js';
+import { originAllowed, verifyTurnstile, signTicket, verifyTicket, listFrom, JOIN_MODES, REJOIN_TTL_MS, rejoinMode, baseMode } from './gate.js';
 import { TICK_HZ, SNAPSHOT_HZ } from '../shared/constants.js';
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
@@ -146,13 +146,12 @@ server.on('upgrade', (req, socket, head) => {
 
 function connect(ws, code, mode) {
   let room = rooms.get(code);
-  if (!room) {
-    if (mode === 'code') return rejectSocket(ws, 'roomNotFound');
+  const verdict = admit(room, mode);
+  if (verdict !== 'create' && verdict !== 'join') return rejectSocket(ws, verdict);
+  if (verdict === 'create') {
     const opts = roomOptions(mode);
     room = new Room(code, opts.isPublic, { tutorial: opts.tutorial });
     rooms.set(code, room);
-  } else if (mode === 'create' || mode === 'tutorial') {
-    return rejectSocket(ws, 'roomTaken');
   }
 
   ws.isAlive = true;
@@ -163,6 +162,7 @@ function connect(ws, code, mode) {
       console.log(`[${code}] ${p.name} left (${room.humanCount} humans)`);
       if (room.humanCount === 0) rooms.delete(code);
     },
+    rejoinTicket: () => signTicket(GATE.ticketSecret, code, rejoinMode(baseMode(mode)), REJOIN_TTL_MS),
   });
   ws.on('message', (raw) => session.onMessage(raw));
   ws.on('close', () => {
@@ -197,6 +197,12 @@ setInterval(() => {
   if (snapAcc >= 1 / SNAPSHOT_HZ - 1e-6) {
     snapAcc = 0;
     for (const r of rooms.values()) r.flush();
+  }
+  // Rooms nobody has played in for a while (never joined, or dropped and didn't come back).
+  for (const [code, r] of rooms) {
+    if (r.emptyFor < EMPTY_ROOM_S) continue;
+    rooms.delete(code);
+    for (const ws of r.sockets) ws.close(1001, 'roomClosed');
   }
 }, 4);
 

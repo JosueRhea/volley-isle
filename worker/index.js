@@ -6,9 +6,9 @@
 //   everything else → static assets from dist/
 import { DurableObject } from 'cloudflare:workers';
 import { Room } from '../server/room.js';
-import { attach, rejectSocket, roomOptions, MAX_HUMANS } from '../server/session.js';
+import { attach, admit, rejectSocket, roomOptions, MAX_HUMANS, EMPTY_ROOM_S } from '../server/session.js';
 import { newCode, CODE_RE } from '../server/codes.js';
-import { originAllowed, verifyTurnstile, signTicket, verifyTicket, listFrom, JOIN_MODES } from '../server/gate.js';
+import { originAllowed, verifyTurnstile, signTicket, verifyTicket, listFrom, JOIN_MODES, REJOIN_TTL_MS, rejoinMode, baseMode } from '../server/gate.js';
 import { TICK_HZ, SNAPSHOT_HZ } from '../shared/constants.js';
 
 const json = (body, status = 200) =>
@@ -70,7 +70,7 @@ export default {
 };
 
 // One live match. Holds the Room in memory and ticks it while anyone is connected; when the last
-// player leaves the loop stops and the object goes away.
+// player leaves (and nobody's reconnect spot is still held) the loop stops and the object goes away.
 export class RoomObject extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -87,24 +87,23 @@ export class RoomObject extends DurableObject {
     const [client, socket] = Object.values(new WebSocketPair());
     socket.accept();
 
-    if (!this.room) {
-      if (mode === 'code') {
-        rejectSocket(socket, 'roomNotFound');
-        return new Response(null, { status: 101, webSocket: client });
-      }
+    const verdict = admit(this.room, mode);
+    if (verdict !== 'create' && verdict !== 'join') {
+      rejectSocket(socket, verdict);
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    if (verdict === 'create') {
       const opts = roomOptions(mode);
       this.code = code;
       this.room = new Room(code, opts.isPublic, { tutorial: opts.tutorial });
       this.startLoop();
-    } else if (mode === 'create' || mode === 'tutorial') {
-      rejectSocket(socket, 'roomTaken');
-      return new Response(null, { status: 101, webSocket: client });
     }
 
     const room = this.room;
     const session = attach(socket, room, {
       onJoin: () => this.report(),
       onLeave: () => this.report(),
+      rejoinTicket: () => signTicket(this.env.TICKET_SECRET, code, rejoinMode(baseMode(mode)), REJOIN_TTL_MS),
     });
     let closed = false;
     const close = () => {
@@ -140,6 +139,8 @@ export class RoomObject extends DurableObject {
         snapAcc = 0;
         room.flush();
       }
+      // Nobody's played here for a while (never joined, or dropped and didn't come back): stop.
+      if (room.emptyFor >= EMPTY_ROOM_S) return this.shutdown();
       // Keep the matchmaker's list fresh for long-running public rooms.
       if (now - this.lastReport > 30000) this.report();
     }, 1000 / TICK_HZ);
@@ -149,6 +150,13 @@ export class RoomObject extends DurableObject {
     clearInterval(this.timer);
     this.timer = null;
     this.report(0);
+    for (const ws of this.room?.sockets ?? []) {
+      try {
+        ws.close(1001, 'roomClosed');
+      } catch {
+        // already closed
+      }
+    }
     this.room = null;
   }
 
