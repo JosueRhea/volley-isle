@@ -148,3 +148,13 @@ docker build -t volley-isle . && docker run -p 3000:3000 volley-isle
 ### Bleachers and spectators
 
 Six three-tier wooden stands seat 72 instanced spectators outside the sidelines. Fans track the ball, gasp at spikes, applaud digs and blocks, and celebrate points in a staggered wave; opposing fans slump and the match winners get a longer celebration. The Blender source is `assets/blender/build_bleachers.py` / `wooden-bleachers.blend`, exported to `client/assets/models/wooden-bleachers.glb`. Crowd poses and event reactions live in `client/scene/env/crowd.js`. The crowd you hear is synthesized in `client/crowd-audio.js`: ensembles of individual formant-shaped voices and per-clapper applause are rendered once in the background, then mixed under the music as a chatter bed, a roar that builds with the rally, and reactions to every touch, net ball and point.
+
+### Beach tournament kit
+
+`assets/blender/build_tournament.py` rebuilds seven editable GLBs and the `tournament-kit.blend` source: the referee stand (with two arm pivots), scoreboard frame, golden coconut trophy, cooler, towel/sandals, surfboard, and duffel bag. Static mesh pieces are merged into material batches. The trophy preserves its metallic gold material.
+
+`client/scene/env/tournament.js` adds the props to the island. Score snapshots drive the hinged number cards and keep them correct after reconnects; point events drive the referee's left/right signal. The winning side gets a trophy reveal during the `over` phase, cleared for the next match. Beach accessories stay outside the court. These are scenery only and do not change gameplay collision.
+
+The animation studio's **Cheer** preview shows each character's celebration: Bongo's chest drums, Pinchy's claw dance, Pip's wing flaps, Tiki's hula, Mochi's soft bounces, and Rocco's fist pumps. The existing Blender face pivots now support laughs, effort expressions, and airborne gasps; landing squash varies with impact and character softness.
+
+Pip now has a separate `LowerBeak` pivot, authored in `build_gameplay_assets.py` and saved in `assets/blender/pip-face.blend`; it opens for cheers and jumps.

@@ -56,6 +56,9 @@ export class Character {
     this.prevY = 0;
     this.wasAir = false;
     this.landT = 9;
+    this.fallSpeed = 0;
+    this.landStrength = 0.24;
+    this.cheerT = 0;
     this.blinkIn = 1 + Math.random() * 3;
     this.blinkT = 0;
     this.swingActive = false;
@@ -213,7 +216,13 @@ export class Character {
     const vy = (y - this.prevY) / Math.max(dt, 1e-3);
     this.prevY = y;
     const air = st.airborne && !st.dive;
-    if (this.wasAir && !air) this.landT = 0;
+    if (this.wasAir && !air) {
+      this.landT = 0;
+      const softness = this.sp.name === 'Mochi' ? .38 : this.sp.name === 'Rocco' ? .20 : .29;
+      this.landStrength = softness * clamp(this.fallSpeed / 7, .55, 1.2);
+    }
+    this.fallSpeed = air ? Math.max(0, -vy) : 0;
+    this.cheerT = st.cheer ? this.cheerT + dt : 0;
     this.wasAir = air;
     this.landT += dt;
 
@@ -281,11 +290,42 @@ export class Character {
       hL.set(-0.13, top + 0.12, front * 0.7);
       hR.set(0.13, top + 0.12, front * 0.7);
     }
+    let celebrationRoll = 0;
     if (st.cheer) {
-      const w = Math.sin(this.t * 14) * 0.12;
-      hL.set(-(sx + 0.2), top + 0.4 + w, 0);
-      hR.set(sx + 0.2, top + 0.4 - w, 0);
-      drop = -Math.abs(Math.sin(this.t * 8)) * 0.15;
+      const t = this.cheerT;
+      const wave = Math.sin(t * 9);
+      hL.set(-(sx + .18), top + .35, 0);
+      hR.set(sx + .18, top + .35, 0);
+      switch (sp.name) {
+        case 'Bongo': // Alternate chest drums, then a proud raised fist.
+          hL.set(-.16, sy + .05 + wave * .13, front + .12);
+          hR.set(.20, sy + .05 - wave * .13, front + .12);
+          if (t % 2.4 > 1.6) hR.set(sx+.15,top+.55,0);
+          lean = -.08;drop = -Math.abs(wave) * .07;
+          break;
+        case 'Pinchy': // Side-to-side claw dance.
+          hL.y += wave * .22;hR.y -= wave * .22;
+          twist = Math.sin(t * 5) * .24;celebrationRoll = wave * .10;
+          break;
+        case 'Pip': // Fast little wing flaps.
+          hL.set(-sx-.25,sy+.18+wave*.30,0);
+          hR.set(sx+.25,sy+.18+wave*.30,0);
+          drop = -Math.abs(Math.sin(t*6))*.19;lean = -.10;
+          break;
+        case 'Tiki': // A relaxed hula with hands moving together.
+          hL.set(-sx+wave*.20,sy+.12,front);
+          hR.set(sx+wave*.20,sy+.12,front);
+          twist = Math.sin(t*4)*.25;celebrationRoll = Math.sin(t*4)*.14;
+          break;
+        case 'Mochi': // Soft bounces and a two-handed wave.
+          hL.y += wave*.18;hR.y += wave*.18;
+          drop = -Math.abs(Math.sin(t*5))*.24;celebrationRoll = Math.sin(t*2.5)*.08;
+          break;
+        case 'Rocco': // Slow, weighty double fist pumps; smoke joins the party.
+          hL.y = hR.y = sy+.32+Math.max(0,Math.sin(t*5))*.42;
+          lean = -.14;drop = -Math.abs(Math.sin(t*2.5))*.08;
+          break;
+      }
     }
     if (st.swing >= 0) {
       const p = st.swing;
@@ -353,13 +393,13 @@ export class Character {
     this.body.rotation.x = damp(this.body.rotation.x, lean, st.dive ? kPose : 1 - Math.exp(-dt * 9));
     this.ry = angleLerp(this.ry, st.ry, 1 - Math.exp(-dt * 12));
     this.body.rotation.y = this.ry + (st.spin ?? 0) + twist;
-    this.body.rotation.z = damp(this.body.rotation.z, idle ? Math.sin(this.t * 0.8 + 0.6) * 0.05 : -sw * 0.045 * run, k);
+    this.body.rotation.z = damp(this.body.rotation.z, st.cheer ? celebrationRoll : idle ? Math.sin(this.t * 0.8 + 0.6) * 0.05 : -sw * 0.045 * run, k);
 
     // Squash & stretch: stretch while rising, jelly-wobble on landing, bounce while running.
     let sq = air ? 1 + clamp(vy * 0.025, -0.08, 0.18) : 1;
-    sq -= Math.exp(-this.landT * 9) * Math.cos(this.landT * 28) * 0.24;
+    sq -= Math.exp(-this.landT * 8) * Math.cos(this.landT * 23) * this.landStrength;
     sq += (Math.abs(sw) - 0.5) * 0.08 * run;
-    if (st.cheer) sq += Math.sin(this.t * 16) * 0.05;
+    if (st.cheer) sq += Math.sin(this.cheerT * 10) * (sp.name === 'Mochi' ? .14 : .06);
     if (idle) sq += breath * 0.02;
     const sxz = 1 / Math.sqrt(sq);
     this.body.scale.set(sxz, sq, sxz);

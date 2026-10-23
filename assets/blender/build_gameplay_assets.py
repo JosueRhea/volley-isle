@@ -162,8 +162,10 @@ for index,name in enumerate(names):
         ell('Belly bib',(0,.64,.28),(.28,.29,.095),M['Ivory'],body)
         for s in (-1,1):ell('Face mask',(s*.13,1.10,.27),(.17,.19,.11),M['Ivory'],body)
         # Puffin's broad orange triangular bill, with a pale ridge.
-        mesh('Sculpted bill',[(-.13,1.045,.35),(.13,1.045,.35),(0,.99,.62),(-.09,.93,.36),(.09,.93,.36)],[(0,1,2),(0,2,3),(1,4,2),(3,2,4),(0,3,4,1)],M['Lava'],body,False)
+        mesh('Sculpted bill',[(-.13,1.045,.35),(.13,1.045,.35),(0,.99,.62),(-.09,.99,.36),(.09,.99,.36)],[(0,1,2),(0,2,3),(1,4,2),(3,2,4),(0,3,4,1)],M['Lava'],body,False)
         tube('Bill ridge',[(0,1.05,.36),(0,1.01,.54),(0,.99,.62)],[.025,.019,.007],M['Gold'],body)
+        jaw=node('LowerBeak',body,(0,.99,.35))
+        mesh('Lower bill',[(-.09,0,.01),(.09,0,.01),(0,0,.27),(-.07,-.06,.015),(.07,-.06,.015)],[(0,1,2),(0,2,3),(1,4,2),(3,2,4),(0,3,4,1)],M['Gold'],jaw,False)
         tuft=node('Secondary_Crest',root,(0,1.30,0))
         for s in (-1,0,1):tube('Swept crest',[(s*.05,0,0),(s*.07,.12,-.04),(s*.1,.19,-.13)],[.045,.038,.004],skin,tuft)
         tail=node('Secondary_Tail',root,(0,.42,-.28))

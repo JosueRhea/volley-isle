@@ -36,7 +36,7 @@ const descriptions = {
   Tip: 'One hand reaches high for a soft touch.',
   Block: 'Both hands pressed high, with knees tucked in the air.',
   Dive: 'Full-body reach, a sliding hold, and eased recovery.',
-  Cheer: 'Raised arms, bouncing bodies, and expressive faces.',
+  Cheer: 'Bongo drums, Pinchy dances, Pip flaps, Tiki sways, Mochi bounces, and Rocco pumps his fists.',
 };
 let action = 'Idle', time = 0, paused = false, speed = 1;
 const duration = 1.6;

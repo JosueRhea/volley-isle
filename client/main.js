@@ -271,6 +271,7 @@ net.on('welcome', (m) => {
   if (state.joined) return; // a reconnect: we're already in the game
   world.sand.clear();
   world.resetCrowd();
+  world.tournament.reset();
   state.joined = true;
   if (m.tutorial) {
     tutorial = new Tutorial({ scene, net, sfx, state, me, input });
@@ -347,6 +348,7 @@ net.on('s', (m) => {
   state.touches = m.tc;
   state.lastTeam = m.lt;
   state.lastPointTeam = m.lp;
+  world.tournament.sync(m.sc, m.ph, m.lp);
 
   for (const [id, x, y, z, flags] of m.p) {
     const sw = flags & 1;

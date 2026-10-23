@@ -6,6 +6,7 @@ import { buildOcean } from './env/water.js';
 import { buildSky } from './env/sky.js';
 import { buildIsland } from './env/island.js';
 import { buildLife } from './env/life.js';
+import { buildTournament } from './env/tournament.js';
 import { rand } from './env/util.js';
 import { NetCloth } from './net.js';
 import { upgradeGameProp } from './game-assets.js';
@@ -103,6 +104,7 @@ export function buildWorld(scene) {
   const net = court(scene);
   const sand = new SandTracks(scene);
   const life = buildLife(scene);
+  const tournament = buildTournament(scene);
 
   const flags = [
     flag(scene, -11.5, -6.5, TEAM_COLORS[0].main),
@@ -120,17 +122,19 @@ export function buildWorld(scene) {
       skyUpdate(t);
       islandUpdate(t);
       life.update(t, dt);
+      tournament.update(t, dt);
       net.update(dt, t);
       sand.update(dt);
       for (const f of flags) f(t);
     },
     net,
     sand,
+    tournament,
     react: life.react,
     watchBall: life.watchBall,
     resetCrowd: life.resetCrowd,
     cheer(team) {
-      if (team === 0 || team === 1) life.cheer(team);
+      if (team === 0 || team === 1) { life.cheer(team);tournament.point(team); }
     },
   };
 }

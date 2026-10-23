@@ -84,7 +84,16 @@ export function animateCharacterRig(c, dt, st, run, drop) {
     if (brow) brow.rotation.z = THREE.MathUtils.lerp(brow.rotation.z, (c.effort ? sign * .22 : -sign * .08), k);
   }
   const mouth = roles.get('Mouth');
-  if (mouth) mouth.scale.y = THREE.MathUtils.lerp(mouth.scale.y, st.cheer ? 1.35 : c.effort ? .5 : 1, k);
+  if (mouth) {
+    // Authored smile and tongue stretch into a laugh, a tense line or a small gasp.
+    const gasp = st.airborne && !c.effort;
+    const laugh = 1.5 + Math.sin(c.cheerT * 10) * .25;
+    mouth.scale.y = THREE.MathUtils.lerp(mouth.scale.y, st.cheer ? laugh : c.effort ? .28 : gasp ? 1.6 : 1, k);
+    mouth.scale.x = THREE.MathUtils.lerp(mouth.scale.x, st.cheer ? 1.23 : gasp ? .48 : c.effort ? 1.12 : 1, k);
+    mouth.rotation.z = THREE.MathUtils.lerp(mouth.rotation.z, st.cheer ? Math.sin(c.cheerT*4)*.06 : 0, k);
+  }
+  const jaw = roles.get('LowerBeak');
+  if (jaw) jaw.rotation.x = THREE.MathUtils.lerp(jaw.rotation.x, st.cheer ? .22 + Math.abs(Math.sin(c.cheerT * 10)) * .22 : st.airborne ? .3 : c.effort ? .06 : 0, k);
   const impact = Math.exp(-c.landT * 10) * Math.sin(c.landT * 24);
   secondary.forEach(({ role, node, rest }, i) => {
     if (role.includes('Smoke')) {

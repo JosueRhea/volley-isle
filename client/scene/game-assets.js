@@ -33,7 +33,8 @@ export async function loadGameModel(url, { teamColor, outline = false } = {}) {
       const color = source.color.clone();
       if (teamColor !== undefined && /^Team(?:\.|$)/.test(source.name)) color.set(teamColor);
       const flat = /^(Ink|White|Mouth|Tongue)(?:\.|$)/.test(source.name);
-      const material = flat ? new THREE.MeshBasicMaterial({ color, side: source.side })
+      const material = /^Trophy gold/.test(source.name) ? new THREE.MeshStandardMaterial({ color, metalness: .65, roughness: .3 })
+        : flat ? new THREE.MeshBasicMaterial({ color, side: source.side })
         : new THREE.MeshToonMaterial({ color, side: source.side, gradientMap: gradientMap() });
       if (/^Lava/.test(source.name) && material.isMeshToonMaterial) {
         material.emissive.set(0xff5500);

@@ -14,6 +14,7 @@ for (const [species, name] of names.entries()) {
     for (const side of ['L', 'R']) {
       for (const part of ['UpperArm', 'Forearm', 'Hand', 'Thigh', 'Shin', 'Shoe', 'Eye']) assert(roles.includes(`${part}_${side}`));
     }
+    assert(roles.includes(species === 2 ? 'LowerBeak' : 'Mouth'), 'every character needs an articulated expression');
     const root = data.nodes.find(n => n.extras?.species === species);
     assert(root);
     assert.deepEqual(root.translation ?? [0, 0, 0], [0, 0, 0], 'studio placement must not leak into export');
