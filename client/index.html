@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Volley Isle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Fredoka:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <button id="mute" data-i18n-title="hud.mute">🎵</button>
+    <div id="cinema"><div class="bar top"></div><div class="bar bottom"></div></div>
+    <div id="hud" class="hidden">
+      <div id="scoreboard">
+        <div class="team t0"><span class="tname" data-i18n="team.0"></span><span id="score0" class="score">0</span></div>
+        <div class="mid">
+          <div class="ball-icon"></div>
+          <div id="clock"></div>
+        </div>
+        <div class="team t1"><span id="score1" class="score">0</span><span class="tname" data-i18n="team.1"></span></div>
+      </div>
+      <div id="touches"></div>
+      <button id="menu-btn" data-i18n-title="hud.menu">☰</button>
+      <div id="room">
+        <span><span data-i18n="hud.room"></span> <b id="room-code"></b></span>
+        <button id="copy-link" data-i18n="hud.copyLink"></button>
+      </div>
+      <div id="roster"></div>
+      <div id="banner"></div>
+      <div id="hint"></div>
+      <div id="controls"></div>
+      <div id="prompt"></div>
+      <div id="meter">
+        <div class="meter-title"><span data-i18n="meter.title"></span> <span data-i18n="meter.sub"></span></div>
+        <div class="meter-bar">
+          <div class="zone short"><span data-i18n="meter.weak"></span></div>
+          <div class="zone good"></div>
+          <div class="zone perfect"><span>★</span></div>
+          <div class="zone good2"></div>
+          <div class="zone long"><span data-i18n="meter.long"></span></div>
+          <div id="meter-needle"></div>
+        </div>
+      </div>
+      <div id="floats"></div>
+      <div id="toast"></div>
+      <div id="afk" class="hidden"></div>
+      <div id="tutorial" class="hidden">
+        <div class="tut-head">
+          <div class="tut-coach">🦀</div>
+          <div>
+            <div id="tut-step"></div>
+            <div id="tut-title"></div>
+          </div>
+        </div>
+        <div id="tut-text"></div>
+        <div id="tut-note"></div>
+        <div id="tut-dots"></div>
+        <div class="tut-actions">
+          <button id="tut-skip" data-i18n="tut.skip"></button>
+          <div id="tut-final" class="hidden">
+            <button id="tut-play" class="primary" data-i18n="tut.play"></button>
+            <button id="tut-menu" data-i18n="tut.menu"></button>
+          </div>
+        </div>
+      </div>
+      <div id="prematch" class="hidden">
+        <div class="pm-head">
+          <div class="pm-title" data-i18n="pm.title"></div>
+          <div class="pm-sub" data-i18n="pm.sub"></div>
+        </div>
+        <div class="pm-teams">
+          <div class="pm-team" id="pm0"></div>
+          <div class="pm-vs">VS</div>
+          <div class="pm-team" id="pm1"></div>
+        </div>
+        <div class="pm-rules" id="pmRules"></div>
+        <div class="pm-actions" id="pmActions"></div>
+      </div>
+      <div id="touch" class="hidden">
+        <div id="stick"><div id="stick-knob"></div></div>
+        <div id="touch-buttons">
+          <button class="tbtn dive" data-action="tip">B<small data-i18n="touch.tip"></small></button>
+          <button class="tbtn jump" data-action="jump">A<small data-i18n="touch.jump"></small></button>
+          <button class="tbtn hit" data-action="hit">X<small data-i18n="touch.hit"></small></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="lobby">
+      <div class="panel">
+        <h1>Volley Isle</h1>
+        <div class="lang-switch seg" id="lang-switch">
+          <button data-value="en">EN</button><button data-value="es">ES</button>
+        </div>
+        <p class="sub" data-i18n="lobby.sub"></p>
+        <div class="picker">
+          <button id="char-prev" class="arrow" data-i18n-label="lobby.prevChar">◀</button>
+          <div class="char-info">
+            <div id="char-name"></div>
+            <div id="char-title"></div>
+          </div>
+          <button id="char-next" class="arrow" data-i18n-label="lobby.nextChar">▶</button>
+        </div>
+        <p id="char-line" class="tagline"></p>
+        <label><span data-i18n="lobby.name"></span> <input id="name" maxlength="16" data-i18n-ph="lobby.namePh" autocomplete="off" /></label>
+        <button id="btn-quick" class="primary" data-i18n="lobby.quick"></button>
+        <button id="btn-create" data-i18n="lobby.create"></button>
+        <div class="join">
+          <input id="code" maxlength="4" data-i18n-ph="lobby.codePh" autocomplete="off" />
+          <button id="btn-join" data-i18n="lobby.join"></button>
+        </div>
+        <p id="lobby-error"></p>
+        <div id="turnstile"></div>
+        <button id="btn-tutorial"><span data-i18n="lobby.tutorial"></span> <small id="tut-new" data-i18n="lobby.tutorialNew"></small></button>
+        <div class="lobby-extra">
+          <button data-open="settings" data-i18n="lobby.settings"></button>
+          <button data-open="help" data-i18n="lobby.help"></button>
+        </div>
+        <p class="note" data-i18n="lobby.note"></p>
+      </div>
+    </div>
+
+    <!-- In-game menu (Esc). The match keeps going online while it's open. -->
+    <div id="pause" class="overlay hidden">
+      <div class="sheet">
+        <h2 data-i18n="menu.title"></h2>
+        <p class="sheet-note" data-i18n="menu.note"></p>
+        <button class="primary" data-close data-i18n="menu.resume"></button>
+        <button data-open="settings" data-i18n="lobby.settings"></button>
+        <button data-open="help" data-i18n="lobby.help"></button>
+        <button id="pause-invite" data-i18n="menu.invite"></button>
+        <button id="leave" class="danger" data-i18n="menu.leave"></button>
+      </div>
+    </div>
+
+    <div id="settings" class="overlay hidden">
+      <div class="sheet wide">
+        <h2 data-i18n="set.title"></h2>
+        <section>
+          <h3 data-i18n="set.sound"></h3>
+          <label class="row"><span data-i18n="set.master"></span> <input type="range" min="0" max="1" step="0.05" data-setting="master" /></label>
+          <label class="row"><span data-i18n="set.music"></span> <input type="range" min="0" max="1" step="0.05" data-setting="music" /></label>
+          <label class="row"><span data-i18n="set.sfx"></span> <input type="range" min="0" max="1" step="0.05" data-setting="sfx" /></label>
+        </section>
+        <section>
+          <h3 data-i18n="set.gameplay"></h3>
+          <label class="row"><span data-i18n="set.prompts"></span> <small data-i18n="set.promptsSub"></small><input type="checkbox" data-setting="prompts" /></label>
+        </section>
+        <section>
+          <h3 data-i18n="set.graphics"></h3>
+          <div class="row"><span data-i18n="set.quality"></span>
+            <div class="seg" data-setting="quality">
+              <button data-value="low" data-i18n="set.low"></button><button data-value="medium" data-i18n="set.medium"></button><button data-value="high" data-i18n="set.high"></button>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h3 data-i18n="set.language"></h3>
+          <div class="row"><span>🌐</span>
+            <div class="seg" data-setting="lang"><button data-value="en">English</button><button data-value="es">Español</button></div>
+          </div>
+        </section>
+        <div class="sheet-actions">
+          <button id="settings-reset" data-i18n="set.reset"></button>
+          <button class="primary" data-close data-i18n="set.done"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="help" class="overlay hidden">
+      <div class="sheet wide">
+        <h2 data-i18n="help.title"></h2>
+        <div id="help-controls"></div>
+        <ul class="tips" data-i18n-html="help.tips"></ul>
+        <div class="sheet-actions"><button class="primary" data-close data-i18n="help.gotIt"></button></div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

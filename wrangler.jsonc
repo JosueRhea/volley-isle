@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "volley-isle",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  // The built client (npm run build). Matching files are served directly; anything else
+  // (/api/*, /ws/*, /health) falls through to the Worker.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+  // Custom Domain: Cloudflare creates the DNS record and certificate for it.
+  "routes": [{ "pattern": "volley.makesuretheyfarrive.com", "custom_domain": true }],
+  // Keep the original workers.dev address working too (old invite links).
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "RoomObject" },
+      { "name": "MATCHMAKER", "class_name": "Matchmaker" }
+    ]
+  },
+  // 30 room creates/joins per minute per IP (per Cloudflare location): stops room-spam and code scanning.
+  "ratelimits": [{ "name": "JOIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomObject", "Matchmaker"] }],
+  // Production settings. Secrets (TURNSTILE_SECRET, TICKET_SECRET) are stored with `wrangler secret put`;
+  // local dev overrides these in the git-ignored .dev.vars (Cloudflare's test keys + localhost).
+  "vars": {
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFh_UiD9aEEoghHP",
+    "TURNSTILE_HOSTNAMES": "volley.makesuretheyfarrive.com,volley-isle.searchmateapp.workers.dev",
+    "ALLOWED_ORIGINS": "https://volley.makesuretheyfarrive.com,https://volley-isle.searchmateapp.workers.dev"
+  },
+  "observability": { "enabled": true }
+}
