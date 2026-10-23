@@ -5,6 +5,8 @@ export const DEFAULTS = {
   master: 0.8, // 0..1
   music: 0.6,
   sfx: 0.9,
+  musicOn: true,
+  sfxOn: true,
   prompts: true, // floating button prompts
   quality: 'high', // 'high' | 'medium' | 'low'
   lang: navigator.language?.toLowerCase().startsWith('es') ? 'es' : 'en', // 'en' | 'es'
@@ -17,6 +19,8 @@ try {
   stored = {};
 }
 export const settings = { ...DEFAULTS, ...stored };
+// Older builds stored music mute on its own. Keep that choice the first time these toggles appear.
+if (!Object.hasOwn(stored, 'musicOn') && localStorage.getItem('volley:muted') === '1') settings.musicOn = false;
 
 const listeners = new Set();
 export function onSettings(fn) {

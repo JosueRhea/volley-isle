@@ -6,7 +6,7 @@ export function setupTouch(input) {
   const stick = document.getElementById('stick');
   const knob = document.getElementById('stick-knob');
   root.classList.remove('hidden');
-  document.body.classList.add('touch'); // moves the mute button out of the thumb zone
+  document.body.classList.add('touch'); // moves the sound button out of the thumb zone
   const R = 56;
   let stickId = null;
   let ox = 0;

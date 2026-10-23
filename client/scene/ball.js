@@ -28,6 +28,32 @@ export function createBall(scene) {
   withOutline(mesh, 0.025);
   scene.add(mesh);
 
+  // White rim around the ink outline, shown while the ball is on the far side of the net
+  // from the camera, so "over there" reads at a glance.
+  const rim = new THREE.Mesh(
+    mesh.geometry,
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+      uniforms: { opacity: { value: 0 } },
+      vertexShader: /* glsl */ `
+        void main() {
+          vec3 p = position + normalize(normal) * 0.085;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform float opacity;
+        void main() {
+          gl_FragColor = vec4(1.0, 1.0, 1.0, opacity);
+        }`,
+    }),
+  );
+  rim.raycast = () => {};
+  rim.visible = false;
+  mesh.add(rim);
+  let rimK = 0;
+
   // Blob shadow straight below the ball: the key depth cue for timing hits.
   const shadow = new THREE.Mesh(
     new THREE.CircleGeometry(BALL_RADIUS * 1.15, 24),
@@ -37,12 +63,27 @@ export function createBall(scene) {
   shadow.position.y = 0.025;
   scene.add(shadow);
 
-  const marker = new THREE.Mesh(
-    new THREE.RingGeometry(0.45, 0.62, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }),
+  // Landing spot. A dark disc and ink ring keep the yellow readable on the sand.
+  const marker = new THREE.Group();
+  const shade = new THREE.Mesh(
+    new THREE.CircleGeometry(0.85, 32),
+    new THREE.MeshBasicMaterial({ color: 0x1b1b2f, transparent: true, opacity: 0.16, depthWrite: false }),
   );
-  marker.rotation.x = -Math.PI / 2;
-  marker.position.y = 0.03;
+  shade.rotation.x = -Math.PI / 2;
+  shade.position.y = 0.02;
+  const ink = new THREE.Mesh(
+    new THREE.RingGeometry(0.44, 0.72, 32),
+    new THREE.MeshBasicMaterial({ color: 0x1b1b2f, transparent: true, opacity: 0.45, depthWrite: false }),
+  );
+  ink.rotation.x = -Math.PI / 2;
+  ink.position.y = 0.028;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.48, 0.68, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.034;
+  marker.add(shade, ink, ring);
   marker.visible = false;
   scene.add(marker);
 
@@ -51,9 +92,12 @@ export function createBall(scene) {
 
   return {
     mesh,
-    update(dt, pos, vel, land, landIsMine) {
+    update(dt, pos, vel, land, landIsMine, farSide = false) {
       t += dt;
       mesh.position.copy(pos);
+      rimK += ((farSide ? 1 : 0) - rimK) * (1 - Math.exp(-dt * 12));
+      rim.material.uniforms.opacity.value = rimK * 0.95;
+      rim.visible = rimK > 0.02;
       if (vel) {
         const speed = Math.hypot(vel.vx, vel.vz);
         if (speed > 0.1) {
@@ -67,13 +111,16 @@ export function createBall(scene) {
       shadow.scale.setScalar(1 + h * 0.12);
       shadow.material.opacity = 0.45 / (1 + h * 0.25);
 
-      marker.visible = !!land;
       if (land) {
-        marker.position.x = land.x;
-        marker.position.z = land.z;
-        marker.material.color.set(landIsMine ? 0xffe36b : 0xffffff);
-        marker.scale.setScalar(1 + Math.sin(t * 10) * 0.08);
+        // Glide over small corrections; jump straight to a new target after a hit.
+        const far = Math.hypot(land.x - marker.position.x, land.z - marker.position.z) > 1.5;
+        const k = !marker.visible || far ? 1 : 1 - Math.exp(-dt * 18);
+        marker.position.x += (land.x - marker.position.x) * k;
+        marker.position.z += (land.z - marker.position.z) * k;
+        ring.material.color.set(landIsMine ? 0xffc400 : 0xffffff);
+        marker.scale.setScalar(1 + Math.sin(t * 5) * 0.05);
       }
+      marker.visible = !!land;
     },
   };
 }

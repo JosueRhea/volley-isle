@@ -52,10 +52,19 @@ export function stepBall(b, dt) {
 // Simulates forward until the ball falls to yLevel (or hits the ground).
 export function predictLanding(b0, yLevel = BALL_RADIUS, maxT = 4) {
   const b = { ...b0 };
+  const crossed = (ev) => (b.vy < 0 && b.y <= yLevel) || ev === 'ground';
   const dt = 1 / 60;
   for (let t = 0; t < maxT; t += dt) {
-    const ev = stepBall(b, dt);
-    if ((b.vy < 0 && b.y <= yLevel) || ev === 'ground') return { x: b.x, y: b.y, z: b.z, t };
+    const prev = { ...b };
+    if (!crossed(stepBall(b, dt))) continue;
+    // Redo the last step finely so the spot doesn't snap to the 1/60 s grid (that made the
+    // marker shiver as the starting point moved from frame to frame).
+    Object.assign(b, prev);
+    const fine = dt / 16;
+    for (let i = 1; i <= 16; i++) {
+      if (crossed(stepBall(b, fine))) return { x: b.x, y: b.y, z: b.z, t: t + i * fine };
+    }
+    return { x: b.x, y: b.y, z: b.z, t: t + dt };
   }
   return null;
 }

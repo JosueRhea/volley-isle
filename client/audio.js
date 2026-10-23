@@ -6,14 +6,14 @@ let master = null;
 let sfxBus = null;
 let whiteBuf = null;
 // Player volume settings (0..1); applied whenever the audio graph exists.
-const volume = { master: 0.8, music: 0.6, sfx: 0.9 };
+const volume = { master: 0.8, music: 0.6, sfx: 0.9, musicOn: true, sfxOn: true };
 const MUSIC_LEVEL = 0.9; // music bus level at 100%
 
 export function setVolumes(v) {
   Object.assign(volume, v);
   if (!ctx) return;
   master.gain.setTargetAtTime(0.75 * volume.master, ctx.currentTime, 0.05);
-  sfxBus.gain.setTargetAtTime(volume.sfx, ctx.currentTime, 0.05);
+  sfxBus.gain.setTargetAtTime(volume.sfxOn ? volume.sfx : 0, ctx.currentTime, 0.05);
   music.refresh?.();
 }
 
@@ -38,7 +38,7 @@ function ac() {
     master.gain.value = 0.75 * volume.master;
     master.connect(comp);
     sfxBus = ctx.createGain();
-    sfxBus.gain.value = volume.sfx;
+    sfxBus.gain.value = volume.sfxOn ? volume.sfx : 0;
     sfxBus.connect(master);
     const verb = ctx.createConvolver();
     verb.buffer = impulse(1.1, 3.5);
@@ -328,7 +328,6 @@ let step = 0;
 let loopCount = 0;
 let nextTime = 0;
 let mode = 'lobby';
-let muted = localStorage.getItem('volley:muted') === '1';
 
 function voice(type, f, t, dur, vol, out, attack = 0.005) {
   const o = ctx.createOscillator();
@@ -437,7 +436,7 @@ export const music = {
     muffle.type = 'lowpass';
     muffle.frequency.value = 20000;
     bus = ctx.createGain();
-    bus.gain.value = muted ? 0 : volume.music * MUSIC_LEVEL;
+    bus.gain.value = volume.musicOn ? volume.music * MUSIC_LEVEL : 0;
     drums = ctx.createGain();
     drums.connect(bus);
     bus.connect(muffle).connect(master);
@@ -457,15 +456,6 @@ export const music = {
     muffle.frequency.setTargetAtTime(on ? 700 : 20000, ctx.currentTime, 0.08);
   },
   refresh() {
-    if (bus) bus.gain.setTargetAtTime(muted ? 0 : volume.music * MUSIC_LEVEL, ctx.currentTime, 0.05);
-  },
-  get muted() {
-    return muted;
-  },
-  toggleMute() {
-    muted = !muted;
-    localStorage.setItem('volley:muted', muted ? '1' : '0');
-    this.refresh();
-    return muted;
+    if (bus) bus.gain.setTargetAtTime(volume.musicOn ? volume.music * MUSIC_LEVEL : 0, ctx.currentTime, 0.05);
   },
 };
