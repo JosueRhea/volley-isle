@@ -191,7 +191,8 @@ export class Character {
     arm.hand.position.y = -len;
   }
 
-  // st: { speed, y, vy, airborne, swing (0..1 or -1), swingKind, dive (0|1|2), ready, ry, cheer, holding, look }
+  // st: { speed, y, vy, airborne, swing (0..1 or -1), swingKind, dive (0|1|2), ready, ry, cheer, holding, look,
+  //       idle (menu fidget), spin (extra yaw, radians) }
   update(dt, st) {
     this.t += dt;
     const sp = this.sp;
@@ -222,6 +223,17 @@ export class Character {
     hL.set(-(sx + 0.05), sy - R * 0.92 + Math.max(0, -sw) * 0.08 * run, 0.02 - sw * 0.28 * run);
     hR.set(sx + 0.05, sy - R * 0.92 + Math.max(0, sw) * 0.08 * run, 0.02 + sw * 0.28 * run);
 
+    const idle = st.idle && run < 0.05 && !air;
+    const breath = Math.sin(this.t * 2.1);
+    if (idle) {
+      // Menu idle: slow breathing, lazy arm sway and a little weight shift side to side.
+      drop = -breath * 0.015;
+      lean = Math.sin(this.t * 0.8) * 0.05;
+      hL.y += Math.sin(this.t * 1.6) * 0.04;
+      hR.y += Math.sin(this.t * 1.6 + 1.3) * 0.04;
+      hL.z += Math.sin(this.t * 1.1) * 0.05;
+      hR.z += Math.sin(this.t * 1.1 + 2) * 0.05;
+    }
     if (st.ready && run < 0.5 && !air) {
       // Ready stance: knees bent, platform low and out front.
       drop = 0.07;
@@ -324,13 +336,15 @@ export class Character {
     // Getting up from a dive is a beat slower than going down.
     this.body.rotation.x = damp(this.body.rotation.x, lean, st.dive ? kPose : 1 - Math.exp(-dt * 9));
     this.ry = angleLerp(this.ry, st.ry, 1 - Math.exp(-dt * 12));
-    this.body.rotation.y = this.ry;
+    this.body.rotation.y = this.ry + (st.spin ?? 0);
+    this.body.rotation.z = damp(this.body.rotation.z, idle ? Math.sin(this.t * 0.8 + 0.6) * 0.05 : 0, k);
 
     // Squash & stretch: stretch while rising, jelly-wobble on landing, bounce while running.
     let sq = air ? 1 + clamp(vy * 0.025, -0.08, 0.18) : 1;
     sq -= Math.exp(-this.landT * 9) * Math.cos(this.landT * 28) * 0.24;
     sq += (Math.abs(sw) - 0.5) * 0.08 * run;
     if (st.cheer) sq += Math.sin(this.t * 16) * 0.05;
+    if (idle) sq += breath * 0.02;
     const sxz = 1 / Math.sqrt(sq);
     this.body.scale.set(sxz, sq, sxz);
 

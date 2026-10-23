@@ -170,6 +170,49 @@ input:focus {
 .join button {
   flex: 1;
 }
+#lobby-status {
+  margin: 0;
+  min-height: 1em;
+  color: #5b6b8c;
+  text-align: center;
+  animation: breathe 1.2s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+#lobby-status:empty {
+  display: none;
+}
+/* The button you pressed stays solid with a spinning ball; the rest dim while we join. */
+button.loading,
+button.loading:disabled {
+  position: relative;
+  opacity: 1;
+  cursor: progress;
+  color: transparent;
+  transform: translateY(4px) !important;
+  box-shadow: 0 1px 0 var(--ink);
+}
+button.loading > * {
+  visibility: hidden;
+}
+button.loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: conic-gradient(var(--sun) 0 60deg, #fff 0 120deg, var(--lagoon) 0 180deg, var(--sun) 0 240deg, #fff 0 300deg, var(--lagoon) 0);
+  animation: spin 0.8s linear infinite;
+}
+#lobby.busy {
+  cursor: progress;
+}
 #lobby-error {
   margin: 0;
   min-height: 1em;
@@ -959,20 +1002,150 @@ button:disabled {
   font-size: 16px;
 }
 
-#mute {
+#sound {
   position: fixed;
   right: 14px;
   bottom: 14px;
-  z-index: 3;
-  width: 48px;
-  height: 48px;
-  padding: 0;
-  font-size: 22px;
-  border-radius: 50%;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
-body.touch #mute {
+#sound-btn {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--sun);
+}
+#sound-btn .ico {
+  width: 28px;
+  height: 28px;
+}
+#sound-btn.muted {
+  background: #d9dde8;
+}
+#sound-btn[aria-expanded='true'] {
+  background: var(--lagoon);
+  color: #fff;
+}
+#sound-panel {
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 0 6px 0 var(--ink);
+  animation: sheetIn 0.25s cubic-bezier(0.3, 1.6, 0.6, 1);
+  transform-origin: bottom right;
+}
+.snd-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 20px var(--title);
+  color: var(--lagoon);
+  -webkit-text-stroke: 1px var(--ink);
+  paint-order: stroke fill;
+}
+.snd-title .ico {
+  color: var(--ink);
+}
+.snd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  background: var(--sky);
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+}
+.snd-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.snd-head input[type='checkbox'] {
+  margin-left: auto;
+}
+.snd-row input[type='range'] {
+  width: 100%;
+}
+input[type='range'].off {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+.snd-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  box-shadow: 0 3px 0 var(--ink);
+}
+body.touch #sound {
   top: 74px;
   bottom: auto;
+  flex-direction: column-reverse;
+}
+body.touch #sound-panel {
+  transform-origin: top right;
+}
+
+/* ---------- Icons (SVG sprite in index.html) ---------- */
+.ico {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -0.22em;
+  overflow: visible;
+}
+.with-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+button.with-ico {
+  display: flex;
+}
+.sheet h2.with-ico {
+  display: flex;
+  gap: 10px;
+}
+.sheet h2 .ico {
+  width: 32px;
+  height: 32px;
+  color: var(--ink);
+  stroke-width: 2.6;
+}
+.sheet h3.with-ico {
+  justify-content: flex-start;
+  gap: 6px;
+}
+.sheet h3 .ico {
+  color: var(--ink);
+  -webkit-text-stroke: 0;
+}
+.sheet .row:has(> input[type='checkbox']) > input[type='range'] {
+  width: 44%;
+}
+.sheet .row > input[type='range'] + input[type='checkbox'] {
+  margin-left: 0;
 }
 
 /* ---------- Menus & settings ---------- */
@@ -995,6 +1168,7 @@ body.touch #mute {
 }
 .lobby-extra button {
   flex: 1;
+  gap: 6px;
   font-size: 15px;
   padding: 8px 10px;
 }

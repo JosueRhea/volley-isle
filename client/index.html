@@ -13,9 +13,33 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
+    <!-- Icon sprite: <svg class="ico"><use href="#i-name" /></svg> -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2 9.5 12 4.5l10 5-10 5z" /><path d="M6 11.5V16c0 1.6 2.7 3.2 6 3.2s6-1.6 6-3.2v-4.5" /><path d="M22 9.5v5.5" /></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" /><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.5-2.7 4" /><path d="M12 17.6h.01" /></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><path fill="currentColor" d="M11 4.5 6 8.5H3v7h3l5 4z" /><path d="M15.5 9a4.2 4.2 0 0 1 0 6" /><path d="M18.5 6a8.5 8.5 0 0 1 0 12" /></symbol>
+      <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" d="M11 4.5 6 8.5H3v7h3l5 4z" /><path d="m16 9.5 5 5" /><path d="m21 9.5-5 5" /></symbol>
+      <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2V16" /><circle fill="currentColor" cx="6.2" cy="18" r="2.8" /><circle fill="currentColor" cx="17.2" cy="16" r="2.8" /></symbol>
+      <symbol id="i-sfx" viewBox="0 0 24 24"><path fill="currentColor" d="m11 3 2 5.6L18.6 10.6 13 12.6 11 18.2 9 12.6 3.4 10.6 9 8.6z" /><path d="M19 15.5v5" /><path d="M16.5 18h5" /></symbol>
+    </svg>
     <div id="app"></div>
 
-    <button id="mute" data-i18n-title="hud.mute">🎵</button>
+    <div id="sound">
+      <div id="sound-panel" class="hidden">
+        <div class="snd-title"><svg class="ico"><use href="#i-sound" /></svg><span data-i18n="set.sound"></span></div>
+        <div class="snd-row">
+          <label class="snd-head"><svg class="ico"><use href="#i-music" /></svg><span data-i18n="set.music"></span><input id="sound-music" type="checkbox" /></label>
+          <input id="sound-music-vol" type="range" min="0" max="1" step="0.05" data-i18n-label="set.music" />
+        </div>
+        <div class="snd-row">
+          <label class="snd-head"><svg class="ico"><use href="#i-sfx" /></svg><span data-i18n="set.sfx"></span><input id="sound-sfx" type="checkbox" /></label>
+          <input id="sound-sfx-vol" type="range" min="0" max="1" step="0.05" data-i18n-label="set.sfx" />
+        </div>
+        <button class="snd-more" data-open="settings"><svg class="ico"><use href="#i-gear" /></svg><span data-i18n="hud.moreSettings"></span></button>
+      </div>
+      <button id="sound-btn" data-i18n-title="hud.sound" data-i18n-label="hud.sound" aria-expanded="false"><svg class="ico"><use href="#i-sound" /></svg></button>
+    </div>
     <div id="cinema"><div class="bar top"></div><div class="bar bottom"></div></div>
     <div id="hud" class="hidden">
       <div id="scoreboard">
@@ -116,12 +140,13 @@
           <input id="code" maxlength="4" data-i18n-ph="lobby.codePh" autocomplete="off" />
           <button id="btn-join" data-i18n="lobby.join"></button>
         </div>
-        <p id="lobby-error"></p>
+        <p id="lobby-status" aria-live="polite"></p>
+        <p id="lobby-error" role="alert"></p>
         <div id="turnstile"></div>
-        <button id="btn-tutorial"><span data-i18n="lobby.tutorial"></span> <small id="tut-new" data-i18n="lobby.tutorialNew"></small></button>
+        <button id="btn-tutorial"><span class="with-ico"><svg class="ico"><use href="#i-cap" /></svg><span data-i18n="lobby.tutorial"></span></span> <small id="tut-new" data-i18n="lobby.tutorialNew"></small></button>
         <div class="lobby-extra">
-          <button data-open="settings" data-i18n="lobby.settings"></button>
-          <button data-open="help" data-i18n="lobby.help"></button>
+          <button class="with-ico" data-open="settings"><svg class="ico"><use href="#i-gear" /></svg><span data-i18n="lobby.settings"></span></button>
+          <button class="with-ico" data-open="help"><svg class="ico"><use href="#i-help" /></svg><span data-i18n="lobby.help"></span></button>
         </div>
         <p class="note" data-i18n="lobby.note"></p>
       </div>
@@ -133,8 +158,8 @@
         <h2 data-i18n="menu.title"></h2>
         <p class="sheet-note" data-i18n="menu.note"></p>
         <button class="primary" data-close data-i18n="menu.resume"></button>
-        <button data-open="settings" data-i18n="lobby.settings"></button>
-        <button data-open="help" data-i18n="lobby.help"></button>
+        <button class="with-ico" data-open="settings"><svg class="ico"><use href="#i-gear" /></svg><span data-i18n="lobby.settings"></span></button>
+        <button class="with-ico" data-open="help"><svg class="ico"><use href="#i-help" /></svg><span data-i18n="lobby.help"></span></button>
         <button id="pause-invite" data-i18n="menu.invite"></button>
         <button id="leave" class="danger" data-i18n="menu.leave"></button>
       </div>
@@ -142,12 +167,12 @@
 
     <div id="settings" class="overlay hidden">
       <div class="sheet wide">
-        <h2 data-i18n="set.title"></h2>
+        <h2 class="with-ico"><svg class="ico"><use href="#i-gear" /></svg><span data-i18n="set.title"></span></h2>
         <section>
-          <h3 data-i18n="set.sound"></h3>
+          <h3 class="with-ico"><svg class="ico"><use href="#i-sound" /></svg><span data-i18n="set.sound"></span></h3>
           <label class="row"><span data-i18n="set.master"></span> <input type="range" min="0" max="1" step="0.05" data-setting="master" /></label>
-          <label class="row"><span data-i18n="set.music"></span> <input type="range" min="0" max="1" step="0.05" data-setting="music" /></label>
-          <label class="row"><span data-i18n="set.sfx"></span> <input type="range" min="0" max="1" step="0.05" data-setting="sfx" /></label>
+          <label class="row"><span data-i18n="set.music"></span> <input type="range" min="0" max="1" step="0.05" data-setting="music" /><input type="checkbox" data-setting="musicOn" data-i18n-label="set.music" /></label>
+          <label class="row"><span data-i18n="set.sfx"></span> <input type="range" min="0" max="1" step="0.05" data-setting="sfx" /><input type="checkbox" data-setting="sfxOn" data-i18n-label="set.sfx" /></label>
         </section>
         <section>
           <h3 data-i18n="set.gameplay"></h3>
@@ -176,7 +201,7 @@
 
     <div id="help" class="overlay hidden">
       <div class="sheet wide">
-        <h2 data-i18n="help.title"></h2>
+        <h2 class="with-ico"><svg class="ico"><use href="#i-help" /></svg><span data-i18n="help.title"></span></h2>
         <div id="help-controls"></div>
         <ul class="tips" data-i18n-html="help.tips"></ul>
         <div class="sheet-actions"><button class="primary" data-close data-i18n="help.gotIt"></button></div>

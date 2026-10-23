@@ -70,6 +70,10 @@ export class Hud {
     $('lobby-error').textContent = msg;
   }
 
+  lobbyStatus(msg) {
+    $('lobby-status').textContent = msg;
+  }
+
   enterGame(code) {
     $('lobby').classList.add('hidden');
     $('hud').classList.remove('hidden');

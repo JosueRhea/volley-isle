@@ -15,7 +15,7 @@ import { initTurnstile, humanToken, spendToken } from './turnstile.js';
 import { CameraDirector } from './camera.js';
 import { setupTouch } from './touch.js';
 import { stepPlayer, stepBall, predictLanding, sideSign, startDive, diveState, meterValue } from '../shared/physics.js';
-import { BALL_RADIUS, SWING_TIME, PLAYER, DIVE, NET } from '../shared/constants.js';
+import { BALL_RADIUS, SWING_TIME, PLAYER, DIVE, NET, COURT } from '../shared/constants.js';
 import { t, teamName, applyStatic } from './i18n.js';
 
 const SEND_HZ = 30;
@@ -61,9 +61,36 @@ const hud = new Hud();
 const net = new Net();
 setupTouch(input);
 
+const soundBtn = document.getElementById('sound-btn');
+const soundPanel = document.getElementById('sound-panel');
+const musicToggle = document.getElementById('sound-music');
+const sfxToggle = document.getElementById('sound-sfx');
+const musicVol = document.getElementById('sound-music-vol');
+const sfxVol = document.getElementById('sound-sfx-vol');
+function syncSound() {
+  musicToggle.checked = settings.musicOn;
+  sfxToggle.checked = settings.sfxOn;
+  for (const [el, v, on] of [
+    [musicVol, settings.music, settings.musicOn],
+    [sfxVol, settings.sfx, settings.sfxOn],
+  ]) {
+    el.value = v;
+    el.style.setProperty('--fill', `${v * 100}%`);
+    el.classList.toggle('off', !on);
+  }
+  const silent = !(settings.musicOn && settings.music > 0) && !(settings.sfxOn && settings.sfx > 0);
+  soundBtn.querySelector('use').setAttribute('href', silent ? '#i-mute' : '#i-sound');
+  soundBtn.classList.toggle('muted', silent);
+}
+function setSoundOpen(open) {
+  soundPanel.classList.toggle('hidden', !open);
+  soundBtn.setAttribute('aria-expanded', String(open));
+}
+
 onSettings((st) => {
-  setVolumes({ master: st.master, music: st.music, sfx: st.sfx });
+  setVolumes({ master: st.master, music: st.music, sfx: st.sfx, musicOn: st.musicOn, sfxOn: st.sfxOn });
   applyQuality(st.quality);
+  syncSound();
 });
 
 // Leaving drops the connection (the server hands your spot back to a CPU) and returns to the title.
@@ -81,23 +108,56 @@ setupMenus({
 addEventListener('click', (e) => {
   if (e.target.closest('button')) sfx.click();
 });
+// iOS Safari only applies :active (the squish-down press) when a touch listener exists.
+addEventListener('touchstart', () => {}, { passive: true });
 
 // Music needs a user gesture to start (browser autoplay rules).
-const muteBtn = document.getElementById('mute');
-const syncMute = () => (muteBtn.textContent = music.muted ? '🔇' : '🎵');
-syncMute();
 addEventListener('pointerdown', () => music.start(), { once: true });
 addEventListener('keydown', () => music.start(), { once: true });
-muteBtn.onclick = (e) => {
+soundBtn.onclick = (e) => {
   e.stopPropagation();
   music.start();
-  music.toggleMute();
-  syncMute();
+  setSoundOpen(soundPanel.classList.contains('hidden'));
 };
+musicToggle.addEventListener('change', () => {
+  music.start();
+  setSetting('musicOn', musicToggle.checked);
+});
+sfxToggle.addEventListener('change', () => {
+  music.start();
+  setSetting('sfxOn', sfxToggle.checked);
+});
+// Dragging a volume slider also switches that channel back on.
+for (const [el, key, onKey] of [
+  [musicVol, 'music', 'musicOn'],
+  [sfxVol, 'sfx', 'sfxOn'],
+]) {
+  el.addEventListener('input', () => {
+    music.start();
+    if (!settings[onKey]) setSetting(onKey, true);
+    setSetting(key, Number(el.value));
+  });
+}
+addEventListener('click', (e) => {
+  if (!e.target.closest('#sound') || e.target.closest('[data-open]')) setSoundOpen(false);
+});
+// The game ignores keys aimed at inputs, so a slider or checkbox that keeps focus after a click
+// would swallow the controls (arrows change the volume, Space flips the toggle). Let go of it once
+// the pointer is released; keyboard users who tab into the panel keep normal focus.
+addEventListener('pointerup', () =>
+  requestAnimationFrame(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement && el.closest('#sound-panel')) el.blur();
+  }),
+);
+// Back to playing: any key pressed outside the panel closes it.
+addEventListener('keydown', () => {
+  if (!soundPanel.classList.contains('hidden') && !soundPanel.contains(document.activeElement)) setSoundOpen(false);
+});
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyM' && !(e.target instanceof HTMLInputElement)) {
-    music.toggleMute();
-    syncMute();
+    music.start();
+    setSetting('musicOn', !settings.musicOn);
   }
 });
 
@@ -109,7 +169,10 @@ const lineup = SPECIES.map((_, i) => {
   return c;
 });
 let picked = Number(localStorage.getItem('volley:char')) || 0;
-function pick(i) {
+const JOY_TIME = 1.3; // the "yay, me!" when a character is chosen
+let joyT = JOY_TIME;
+let juggleT = 0;
+function pick(i, celebrate = false) {
   picked = (i + SPECIES.length) % SPECIES.length;
   localStorage.setItem('volley:char', picked);
   const sp = SPECIES[picked];
@@ -117,9 +180,13 @@ function pick(i) {
   document.getElementById('char-title').textContent = t(`species.${picked}.title`);
   document.getElementById('char-line').textContent = t(`species.${picked}.tagline`);
   lineup[picked].landT = 0; // little jelly bounce when chosen
+  if (celebrate) {
+    joyT = 0;
+    sfx.jump();
+  }
 }
-document.getElementById('char-prev').onclick = () => pick(picked - 1);
-document.getElementById('char-next').onclick = () => pick(picked + 1);
+document.getElementById('char-prev').onclick = () => pick(picked - 1, true);
+document.getElementById('char-next').onclick = () => pick(picked + 1, true);
 pick(picked);
 
 // ---------- Game state ----------
@@ -182,6 +249,17 @@ function predictBall(now) {
     lead -= d;
   }
   return b;
+}
+
+// True while the ball is across the net from the camera and shows on screen over (or just around)
+// the net, where it's hard to tell which side it's on. Casts the camera→ball ray onto the net plane.
+function behindNet(b, cam) {
+  if (b.x * cam.x >= 0 || Math.abs(b.x) < BALL_RADIUS) return false;
+  const k = cam.x / (cam.x - b.x);
+  const y = cam.y + (b.y - cam.y) * k;
+  const z = cam.z + (b.z - cam.z) * k;
+  const m = BALL_RADIUS * k + 0.5; // the ball's size at the net, plus a little "near the net" slack
+  return y > NET.bottom - m && y < NET.height + m && Math.abs(z) < COURT.halfWidth + 0.7 + m;
 }
 
 // ---------- Network handlers ----------
@@ -317,6 +395,7 @@ net.on('error', (m) => {
   if (m.code !== 'roomTaken') hud.lobbyError(m.code ? t(`err.${m.code}`) : m.msg);
 });
 net.on('close', () => {
+  joinWait?.('closed');
   if (state.joined) hud.banner(t('ban.disconnected'), t('ban.refresh'), 1e9);
 });
 
@@ -425,21 +504,49 @@ hud.on('rules', (d) => {
 hud.on('invite', () => hud.copyInvite());
 
 // ---------- Lobby ----------
+// While a join is in flight: spinner on the button you pressed, the other ways in are locked, and a
+// status line says what we're waiting on (Turnstile → room → socket → welcome).
+const LOBBY_ACTIONS = ['btn-quick', 'btn-create', 'btn-join', 'btn-tutorial'];
+const JOIN_BUTTON = { quick: 'btn-quick', create: 'btn-create', code: 'btn-join', tutorial: 'btn-tutorial' };
+let joining = false;
+function setJoining(mode, step) {
+  joining = !!mode;
+  for (const id of LOBBY_ACTIONS) {
+    const b = document.getElementById(id);
+    b.disabled = joining;
+    b.classList.toggle('loading', joining && id === JOIN_BUTTON[mode]);
+  }
+  document.getElementById('code').disabled = joining;
+  document.getElementById('lobby').classList.toggle('busy', joining);
+  hud.lobbyStatus(joining ? t(`join.${step}`) : '');
+}
+
 async function join(mode) {
+  if (joining) return;
   sfx.unlock();
   hud.lobbyError('');
   localStorage.setItem('volley:name', hud.name);
   if (mode === 'code' && hud.code.length !== 4) return hud.lobbyError(t('err.code'));
+  try {
+    await joinSteps(mode);
+  } finally {
+    setJoining(null);
+  }
+}
+
+async function joinSteps(mode) {
   // Prove we're human (Turnstile), get a room code + signed ticket, then connect to that room.
   for (let attempt = 0; attempt < 3; attempt++) {
     let code;
     try {
+      setJoining(mode, 'human');
       let token;
       try {
         token = await humanToken();
       } catch {
         return hud.lobbyError(t('err.human'));
       }
+      setJoining(mode, 'room');
       const res = await fetch('/api/join', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -452,15 +559,24 @@ async function join(mode) {
       }
       const joinInfo = await res.json();
       code = joinInfo.code;
+      setJoining(mode, 'connect');
       await net.connect(`/ws/${encodeURIComponent(code)}?mode=${mode}&ticket=${encodeURIComponent(joinInfo.ticket)}`);
     } catch {
       return hud.lobbyError(t('err.server'));
     }
+    setJoining(mode, 'enter');
+    // Settles on welcome / error, or gives up if the socket drops or the room never answers.
+    const timer = setTimeout(() => joinWait?.('timeout'), 15000);
     const rejected = await new Promise((resolve) => {
       joinWait = resolve;
       net.send({ t: 'join', mode, code, name: hud.name, char: picked });
     });
+    clearTimeout(timer);
     joinWait = null;
+    if (rejected === 'closed' || rejected === 'timeout') {
+      net.close();
+      return hud.lobbyError(t('err.server'));
+    }
     if (rejected !== 'roomTaken') return; // brand-new codes can (very rarely) collide: just try another
   }
 }
@@ -659,9 +775,11 @@ function updateGame(realDt, now) {
     state.ball.render.set(bs.x, bs.y, bs.z).add(state.ball.offset);
   }
   const ballPos = state.ball.render;
-  const land = live && bs ? predictLanding(bs) : null;
+  // Predict from the server snapshot, not the per-frame extrapolation, so the spot only moves
+  // when new information arrives.
+  const land = live && bs ? predictLanding(state.ball.snap) : null;
   const landTeam = land ? (land.x < 0 ? 0 : 1) : null;
-  ballView.update(dt, ballPos, bs, land, landTeam === state.myTeam);
+  ballView.update(dt, ballPos, bs, land, landTeam === state.myTeam, behindNet(ballPos, camera.position));
 
   // Players
   const k = 1 - Math.exp(-realDt * 14);
@@ -764,12 +882,40 @@ function updateLobby(dt, t) {
     const speed = Math.hypot(tx - p.x, tz - p.z) * 8;
     p.x += (tx - p.x) * k;
     p.z += (tz - p.z) * k;
-    c.update(dt, { speed: Math.min(speed, 6), y: 0, ry: -Math.PI / 2, airborne: false, swing: -1, holding: front, look: camera.position });
+    const joy = front && joyT < JOY_TIME;
+    if (!joy) {
+      c.update(dt, { speed: Math.min(speed, 6), y: 0, ry: -Math.PI / 2, airborne: false, swing: -1, holding: front, idle: true, look: camera.position });
+      return;
+    }
+    // Chosen: two happy hops with arms up, a full spin on the first one.
+    const hop = joyT < 1.1 ? Math.abs(Math.sin((joyT / 1.1) * Math.PI * 2)) * 0.45 : 0;
+    const spin = Math.min(1, joyT / 0.55);
+    p.y = hop;
+    c.update(dt, {
+      speed: 0,
+      y: hop,
+      ry: -Math.PI / 2,
+      spin: (1 - Math.pow(1 - spin, 3)) * Math.PI * 2,
+      airborne: hop > 0.02,
+      swing: -1,
+      cheer: true,
+      look: camera.position,
+    });
   });
+  for (const c of lineup) if (c !== lineup[picked]) c.root.position.y = 0;
 
-  // Your pick juggles the ball overhead.
+  // Your pick juggles the ball overhead; when chosen they toss it high and catch it again.
   const sel = lineup[picked];
-  ballSpot.set(sel.root.position.x, sel.sp.top + 0.35 + Math.abs(Math.sin(t * 3.2)) * 0.7, sel.root.position.z);
+  const base = sel.sp.top + 0.35;
+  if (joyT < JOY_TIME) {
+    if (joyT === 0) effects.particles(ballSpot.set(sel.root.position.x, base, sel.root.position.z), 20, [0xffd23f, 0xff6b6b, 0x2f9bff, 0x3ccf6a, 0xffffff], 4, 4, 9, 0.9);
+    joyT += dt;
+    juggleT = 0;
+    ballSpot.set(sel.root.position.x, sel.root.position.y + base + Math.sin((Math.min(joyT, JOY_TIME) / JOY_TIME) * Math.PI) * 2.4, sel.root.position.z);
+  } else {
+    juggleT += dt;
+    ballSpot.set(sel.root.position.x, base + Math.abs(Math.sin(juggleT * 3.2)) * 0.7, sel.root.position.z);
+  }
   ballView.update(dt, ballSpot, null, null);
 }
 
