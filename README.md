@@ -120,6 +120,8 @@ npm run cf:dev     # build + run the Worker and Durable Objects locally (wrangle
 npm run deploy     # build + deploy to Cloudflare (wrangler deploy)
 ```
 
+**Automatic deploys:** every push to `main` (including merged PRs) deploys via `.github/workflows/deploy.yml`, and it can be re-run by hand from the Actions tab. It needs the repository secret `CLOUDFLARE_API_TOKEN` (a Cloudflare token from the "Edit Cloudflare Workers" template) and the repository variable `CLOUDFLARE_ACCOUNT_ID`.
+
 **Secrets:** the Worker needs `TURNSTILE_SECRET` and `TICKET_SECRET`, set with `wrangler secret put` and never committed. For `npm run cf:dev`, the git-ignored `.dev.vars` provides Cloudflare's Turnstile test keys, the localhost hostnames and origins, and a local ticket key. The plain Node host (`npm run dev`) runs without Turnstile unless `TURNSTILE_SECRET` is set; origin checks and join tickets are always on.
 
 How it fits together (`worker/index.js`, `wrangler.jsonc`):

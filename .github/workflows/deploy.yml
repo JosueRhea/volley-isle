@@ -1,0 +1,45 @@
+# Deploys the game to Cloudflare whenever main changes (a merged PR or a direct push).
+# Needs two repository settings:
+#   secret   CLOUDFLARE_API_TOKEN  – a Cloudflare API token from the "Edit Cloudflare Workers" template
+#   variable CLOUDFLARE_ACCOUNT_ID – the Cloudflare account the Worker lives in
+# Runtime secrets (TURNSTILE_SECRET, TICKET_SECRET) already live in Cloudflare and are left untouched.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # manual re-deploy from the Actions tab
+
+# One deploy at a time; a newer push waits for the running deploy instead of racing it.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://volley.makesuretheyfarrive.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build and deploy
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Check the live site
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 3 --retry-all-errors https://volley.makesuretheyfarrive.com/health
