@@ -8,6 +8,8 @@ import { buildIsland } from './env/island.js';
 import { buildLife } from './env/life.js';
 import { rand } from './env/util.js';
 import { NetCloth } from './net.js';
+import { upgradeGameProp } from './game-assets.js';
+import { sandMesh, SandTracks } from './env/sand.js';
 
 const COURT_SAND = 0xfbe7b5;
 const WOOD = 0xa8713d;
@@ -41,7 +43,7 @@ function flag(scene, x, z, color) {
 function court(scene) {
   const W = COURT.halfLength * 2;
   const D = COURT.halfWidth * 2;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W + 3, D + 3), toon(COURT_SAND));
+  const floor = sandMesh(new THREE.PlaneGeometry(W + 3, D + 3), COURT_SAND);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0.005;
   floor.receiveShadow = true;
@@ -66,12 +68,16 @@ function court(scene) {
   // Net, posts, top band
   const postZ = COURT.halfWidth + 0.7;
   for (const sz of [-1, 1]) {
+    const standard = new THREE.Group();
+    standard.position.z = sz * postZ;
+    scene.add(standard);
     const post = part(new THREE.CylinderGeometry(0.09, 0.11, NET.height + 0.3, 10), WOOD, { outline: 0.025 });
-    post.position.set(0, (NET.height + 0.3) / 2, sz * postZ);
-    scene.add(post);
+    post.position.set(0, (NET.height + 0.3) / 2, 0);
+    standard.add(post);
     const cap = part(new THREE.SphereGeometry(0.14, 10, 8), 0xf2c641, { outline: 0.02 });
-    cap.position.set(0, NET.height + 0.32, sz * postZ);
-    scene.add(cap);
+    cap.position.set(0, NET.height + 0.32, 0);
+    standard.add(cap);
+    upgradeGameProp(standard, 'post', { teamColor: TEAM_COLORS[sz < 0 ? 0 : 1].main });
   }
   return new NetCloth(scene);
 }
@@ -95,6 +101,7 @@ export function buildWorld(scene) {
   const ocean = buildOcean(scene, HORIZON);
   const islandUpdate = buildIsland(scene);
   const net = court(scene);
+  const sand = new SandTracks(scene);
   const life = buildLife(scene);
 
   const flags = [
@@ -114,9 +121,14 @@ export function buildWorld(scene) {
       islandUpdate(t);
       life.update(t, dt);
       net.update(dt, t);
+      sand.update(dt);
       for (const f of flags) f(t);
     },
     net,
+    sand,
+    react: life.react,
+    watchBall: life.watchBall,
+    resetCrowd: life.resetCrowd,
     cheer(team) {
       if (team === 0 || team === 1) life.cheer(team);
     },

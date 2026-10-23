@@ -1,116 +1,8 @@
 import * as THREE from 'three';
 import { part, toon } from '../toon.js';
-import { TEAM_COLORS } from '../../teams.js';
-import { rand, pickOne, shoreRadius, instancedOutlineMaterial } from './util.js';
+import { buildCrowd } from './crowd.js';
+import { rand, shoreRadius } from './util.js';
 import { WATER_Y } from './water.js';
-
-const NEUTRAL = [0xff7eb6, 0x9b7bff, 0x7be0ad, 0xffd84d, 0xff8a65, 0x6ad1ff, 0xc3e86b];
-const UP = new THREE.Vector3(0, 1, 0);
-
-// Fans along both sidelines. Fully instanced: body, outline, hands, eye whites, pupils.
-function crowd(scene) {
-  const fans = [];
-  for (const side of [-1, 1]) {
-    for (let row = 0; row < 2; row++) {
-      for (let x = -8.6; x <= 8.6; x += 1.45) {
-        const r = rand(0.34, 0.44) * (row ? 1.1 : 1);
-        const roll = Math.random();
-        const team = roll < 0.38 ? 0 : roll < 0.76 ? 1 : -1;
-        fans.push({
-          x: x + rand(-0.25, 0.25) + row * 0.7,
-          z: side * (10.7 + row * 1.35 + rand(-0.15, 0.15)),
-          r,
-          team,
-          color: team >= 0 ? TEAM_COLORS[team].main : pickOne(NEUTRAL),
-          yaw: (side > 0 ? Math.PI : 0) + rand(-0.25, 0.25),
-          ph: rand(0, 10),
-          speed: rand(1.6, 2.6),
-        });
-      }
-    }
-  }
-  const N = fans.length;
-  const sphere = new THREE.SphereGeometry(1, 18, 14);
-  const body = new THREE.InstancedMesh(sphere, toon(0xffffff), N);
-  const bodyLine = new THREE.InstancedMesh(sphere, instancedOutlineMaterial(0.09), N);
-  const hands = new THREE.InstancedMesh(sphere, toon(0xffffff), N * 2);
-  const handLine = new THREE.InstancedMesh(sphere, instancedOutlineMaterial(0.25), N * 2);
-  const whites = new THREE.InstancedMesh(sphere, new THREE.MeshBasicMaterial({ color: 0xffffff }), N * 2);
-  const pupils = new THREE.InstancedMesh(sphere, new THREE.MeshBasicMaterial({ color: 0x1b1b2f }), N * 2);
-  const color = new THREE.Color();
-  fans.forEach((f, i) => {
-    body.setColorAt(i, color.set(f.color));
-    hands.setColorAt(i * 2, color);
-    hands.setColorAt(i * 2 + 1, color);
-  });
-  for (const m of [body, bodyLine, hands, handLine, whites, pupils]) {
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    m.frustumCulled = false;
-    m.castShadow = m === body;
-    scene.add(m);
-  }
-
-  const M = new THREE.Matrix4();
-  const S = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const p = new THREE.Vector3();
-  const sc = new THREE.Vector3();
-  const v = new THREE.Vector3();
-  const cheer = [0, 0];
-  let blinkSeed = 0;
-
-  const place = (mesh, i, local, size) => {
-    v.copy(local).applyMatrix4(M);
-    S.compose(v, q, sc.setScalar(size));
-    mesh.setMatrixAt(i, S);
-  };
-
-  return {
-    cheer(team) {
-      cheer[team] = 1;
-    },
-    update(t, dt) {
-      cheer[0] = Math.max(0, cheer[0] - dt / 3.2);
-      cheer[1] = Math.max(0, cheer[1] - dt / 3.2);
-      blinkSeed = Math.floor(t * 3);
-      fans.forEach((f, i) => {
-        const hype = f.team >= 0 ? cheer[f.team] : Math.max(cheer[0], cheer[1]) * 0.4;
-        const sulk = f.team >= 0 ? cheer[1 - f.team] : 0;
-        const idle = Math.abs(Math.sin(t * f.speed + f.ph));
-        const jump = Math.abs(Math.sin(t * 8.5 + f.ph));
-        const hop = idle * 0.05 * (1 - sulk) + jump * 0.6 * hype;
-        const sy = 1 + Math.sin(t * 8.5 * 2 + f.ph * 2) * 0.12 * hype - 0.12 * sulk + (idle - 0.5) * 0.06;
-        const sxz = 1 / Math.sqrt(sy);
-        q.setFromAxisAngle(UP, f.yaw);
-        p.set(f.x, f.r * sy + hop, f.z);
-        M.compose(p, q, sc.set(f.r * sxz, f.r * sy, f.r * sxz));
-        body.setMatrixAt(i, M);
-        bodyLine.setMatrixAt(i, M);
-
-        // Hands: down at the sides normally, waving overhead when their team scores.
-        const wave = Math.sin(t * 14 + f.ph) * 0.25;
-        for (const hx of [-1, 1]) {
-          const up = hype > 0.05 ? 1 : 0;
-          v.set(hx * (1.05 - up * 0.25), -0.15 + up * (1.25 + wave * hx), 0.15);
-          place(hands, i * 2 + (hx > 0 ? 1 : 0), v.clone(), f.r * 0.28);
-          handLine.setMatrixAt(i * 2 + (hx > 0 ? 1 : 0), S);
-        }
-        // Googly eyes, with the odd blink.
-        const blink = (Math.sin(f.ph * 13.7 + blinkSeed * 1.3) > 0.97 ? 0.15 : 1) * (sulk > 0.3 ? 0.6 : 1);
-        for (const ex of [-1, 1]) {
-          const k = i * 2 + (ex > 0 ? 1 : 0);
-          v.set(ex * 0.32, 0.28, 0.85).applyMatrix4(M);
-          S.compose(v, q, sc.set(f.r * 0.3, f.r * 0.3 * blink, f.r * 0.3));
-          whites.setMatrixAt(k, S);
-          v.set(ex * 0.32, 0.28 - sulk * 0.08, 1.08).applyMatrix4(M);
-          S.compose(v, q, sc.set(f.r * 0.17, f.r * 0.17 * blink, f.r * 0.12));
-          pupils.setMatrixAt(k, S);
-        }
-      });
-      for (const m of [body, bodyLine, hands, handLine, whites, pupils]) m.instanceMatrix.needsUpdate = true;
-    },
-  };
-}
 
 function gull(scene) {
   const g = new THREE.Group();
@@ -236,11 +128,15 @@ function dolphin(scene) {
 }
 
 export function buildLife(scene) {
-  const fans = crowd(scene);
+  const fans = buildCrowd(scene);
   const gulls = [0, 1, 2, 3].map(() => gull(scene));
   const dolphinUpdate = dolphin(scene);
   return {
     cheer: fans.cheer,
+    react: fans.react,
+    watchBall: fans.watchBall,
+    resetCrowd: fans.reset,
+    crowd: fans,
     update(t, dt) {
       fans.update(t, dt);
       for (const g of gulls) g(t);

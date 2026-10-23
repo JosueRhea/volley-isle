@@ -1,10 +1,13 @@
 // Cartoon sound kit. Everything is synthesized (no audio files), tuned to feel toy-like and rubbery
 // to match the visuals: bouncy pitch slides, soft round attacks, slight random variation, stereo
 // panning, and a touch of bright outdoor reverb.
+import { createCrowd } from './crowd-audio.js';
+
 let ctx = null;
 let master = null;
 let sfxBus = null;
 let whiteBuf = null;
+let crowd = null;
 // Player volume settings (0..1); applied whenever the audio graph exists.
 const volume = { master: 0.8, music: 0.6, sfx: 0.9, musicOn: true, sfxOn: true };
 const MUSIC_LEVEL = 0.9; // music bus level at 100%
@@ -33,7 +36,16 @@ function ac() {
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14;
     comp.ratio.value = 4;
-    comp.connect(ctx.destination);
+    // Brick-wall limiter last in the chain: whatever stacks up, the output never clips.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
+    const trim = ctx.createGain();
+    trim.gain.value = 0.85; // headroom for the compressors' automatic makeup gain
+    comp.connect(limiter).connect(trim).connect(ctx.destination);
     master = ctx.createGain();
     master.gain.value = 0.75 * volume.master;
     master.connect(comp);
@@ -48,6 +60,7 @@ function ac() {
     whiteBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = whiteBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    crowd = createCrowd(ctx, sfxBus);
   }
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
@@ -258,19 +271,9 @@ export const sfx = {
     }
   },
 
-  // The blob fans: squeaky critter chirps and tiny claps. Big cheer for you, a few "aww"s otherwise.
-  crowd(mine) {
-    if (!live()) return;
-    const chirps = mine ? 16 : 5;
-    for (let i = 0; i < chirps; i++) {
-      const f = rand(800, 1500);
-      const up = mine || Math.random() < 0.3;
-      osc({ f, to: f * (up ? rand(1.3, 1.7) : rand(0.6, 0.75)), glide: rand(0.08, 0.16), dur: rand(0.16, 0.26), vol: 0.035, delay: rand(0, 0.8), dest: out(rand(-0.8, 0.8)) });
-    }
-    for (let i = 0; i < (mine ? 34 : 10); i++) {
-      hiss({ f: rand(1500, 3200), q: 2, dur: 0.02, vol: 0.03, delay: rand(0, 1.1), dest: out(rand(-0.9, 0.9)) });
-    }
-  },
+  // The stands (see crowd-audio.js): react to a game event, and follow the rally every frame.
+  crowdReact: (kind, info) => live() && crowd.react(kind, info),
+  crowdUpdate: (s) => live() && crowd.update(s),
 
   // Victory fanfare on bells, with a warm bass under it.
   fanfare() {

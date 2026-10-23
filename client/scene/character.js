@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { part } from './toon.js';
 import { buildSpecies, blobGeo } from './species.js';
 import { TEAM_COLORS } from '../teams.js';
+import { attachCharacterRig, animateCharacterRig } from './character-rig.js';
 
 const INK_MAT = new THREE.MeshBasicMaterial({ color: 0x1b1b2f });
 const WHITE_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -57,6 +58,9 @@ export class Character {
     this.landT = 9;
     this.blinkIn = 1 + Math.random() * 3;
     this.blinkT = 0;
+    this.swingActive = false;
+    this.recoverT = 0;
+    this.disposed = false;
 
     const { sp, update } = buildSpecies(species, this.body);
     this.sp = sp;
@@ -156,6 +160,10 @@ export class Character {
     this.teamColor = tc.main;
     this.ring.position.y = 0.02;
     this.root.add(this.ring);
+    this.modelReady = attachCharacterRig(this, species, tc.main).catch((error) => {
+      console.warn(`Using fallback ${this.sp.name}:`, error);
+      return false;
+    });
   }
 
   setLabel(text, isMe) {
@@ -194,7 +202,12 @@ export class Character {
   // st: { speed, y, vy, airborne, swing (0..1 or -1), swingKind, dive (0|1|2), ready, ry, cheer, holding, look,
   //       idle (menu fidget), spin (extra yaw, radians) }
   update(dt, st) {
+    if (this.disposed) return;
     this.t += dt;
+    const swinging = st.swing >= 0;
+    if (this.swingActive && !swinging) this.recoverT = 0.18;
+    this.swingActive = swinging;
+    this.recoverT = Math.max(0, this.recoverT - dt);
     const sp = this.sp;
     const y = st.y ?? 0;
     const vy = (y - this.prevY) / Math.max(dt, 1e-3);
@@ -220,6 +233,8 @@ export class Character {
     let lift = 0;
     let effort = false;
     let poseK = 14;
+    let twist = 0;
+    if (this.recoverT > 0) poseK = 8; // ease from the follow-through back into locomotion
     hL.set(-(sx + 0.05), sy - R * 0.92 + Math.max(0, -sw) * 0.08 * run, 0.02 - sw * 0.28 * run);
     hR.set(sx + 0.05, sy - R * 0.92 + Math.max(0, sw) * 0.08 * run, 0.02 + sw * 0.28 * run);
 
@@ -288,10 +303,11 @@ export class Character {
         case 'spike':
         case 'serve': {
           // Cock the hitting arm back behind the head, then whip it through.
-          const e = p < 0.2 ? 0 : 1 - Math.pow(1 - (p - 0.2) / 0.8, 3);
+          const e = THREE.MathUtils.smoothstep(p, 0.18, 0.78);
           hR.set(sx * (1 - e * 0.5), top + 0.35 - e * (top + 0.25 - sy), -0.3 + e * (front + 0.7));
           hL.set(-sx * 0.6 - e * 0.3, top + 0.3 - e * 0.6, front * 0.5 - e * 0.3);
           lean = -0.35 + e * 0.8;
+          twist = -0.22 + e * 0.42;
           effort = true;
           break;
         }
@@ -331,13 +347,13 @@ export class Character {
     this.reach(this.armR, hR, kPose);
     this.legL.rotation.x = damp(this.legL.rotation.x, legL, k);
     this.legR.rotation.x = damp(this.legR.rotation.x, legR, k);
-    const bob = Math.abs(sw) * 0.08 * run;
+    const bob = Math.abs(sw) * 0.06 * run + Math.sin(this.t * 2.5) * 0.008 * (1 - run);
     this.body.position.y = damp(this.body.position.y, bob - drop + lift, k);
     // Getting up from a dive is a beat slower than going down.
     this.body.rotation.x = damp(this.body.rotation.x, lean, st.dive ? kPose : 1 - Math.exp(-dt * 9));
     this.ry = angleLerp(this.ry, st.ry, 1 - Math.exp(-dt * 12));
-    this.body.rotation.y = this.ry + (st.spin ?? 0);
-    this.body.rotation.z = damp(this.body.rotation.z, idle ? Math.sin(this.t * 0.8 + 0.6) * 0.05 : 0, k);
+    this.body.rotation.y = this.ry + (st.spin ?? 0) + twist;
+    this.body.rotation.z = damp(this.body.rotation.z, idle ? Math.sin(this.t * 0.8 + 0.6) * 0.05 : -sw * 0.045 * run, k);
 
     // Squash & stretch: stretch while rising, jelly-wobble on landing, bounce while running.
     let sq = air ? 1 + clamp(vy * 0.025, -0.08, 0.18) : 1;
@@ -347,6 +363,11 @@ export class Character {
     if (idle) sq += breath * 0.02;
     const sxz = 1 / Math.sqrt(sq);
     this.body.scale.set(sxz, sq, sxz);
+    this.effort = effort;
+    if (this.rig) {
+      this.root.updateMatrixWorld(true);
+      animateCharacterRig(this, dt, st, run, drop);
+    }
 
     // Blink, squint with effort, pupils that follow the ball.
     this.blinkIn -= dt;
@@ -362,7 +383,7 @@ export class Character {
       local = this.body.worldToLocal(tmp.copy(st.look));
     }
     for (const e of this.eyes) {
-      e.g.scale.y = damp(e.g.scale.y, eyeOpen, 0.6);
+      e.g.scale.y = damp(e.g.scale.y, eyeOpen, 1 - Math.exp(-dt * 42));
       if (!e.pupil) continue;
       if (local) {
         dir.copy(local).sub(e.g.position).normalize();
@@ -378,7 +399,9 @@ export class Character {
   }
 
   dispose(scene) {
+    this.disposed = true;
     scene.remove(this.root);
+    this.rig?.dispose();
     if (this.label) this.label.material.map.dispose();
   }
 }

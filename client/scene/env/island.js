@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { part, toon, gradientMap } from '../toon.js';
+import { upgradeIslandProp } from '../island-assets.js';
+import { upgradeGameProp } from '../game-assets.js';
+import { sandMesh } from './sand.js';
 import { rand, pickOne, shoreRadius, wobblyShape, instancedOutlineMaterial, stripeTexture } from './util.js';
 
 const SAND = 0xf7dd9a;
@@ -20,7 +23,7 @@ function landmass(scene) {
     if (i === 0) shape.moveTo(Math.cos(a) * r, -Math.sin(a) * r);
     else shape.lineTo(Math.cos(a) * r, -Math.sin(a) * r);
   }
-  const top = new THREE.Mesh(new THREE.ShapeGeometry(shape), toon(SAND));
+  const top = sandMesh(new THREE.ShapeGeometry(shape), SAND);
   top.rotation.x = -Math.PI / 2;
   top.receiveShadow = true;
   scene.add(top);
@@ -175,6 +178,7 @@ function palm(scene, x, z, h = 7) {
   }
   g.rotation.y = Math.atan2(-z, x) + rand(-0.4, 0.4); // lean out, away from the court
   scene.add(g);
+  upgradeIslandProp(g, 'palm', { scale: h / 7 });
   const ph = rand(0, 6);
   return (t) => {
     g.rotation.z = Math.sin(t * 0.7 + ph) * 0.025;
@@ -202,6 +206,7 @@ function umbrella(scene, x, z, colors) {
   g.rotation.z = rand(-0.15, 0.15);
   g.rotation.x = rand(-0.15, 0.15);
   scene.add(g);
+  upgradeIslandProp(g, 'umbrella', { colors });
 
   const towel = part(new THREE.BoxGeometry(0.95, 0.04, 1.8), 0, {
     outline: 0.015,
@@ -243,6 +248,7 @@ function snackHut(scene, x, z) {
   sign.position.set(0, 2.35, 1.3);
   g.add(sign);
   scene.add(g);
+  upgradeGameProp(g, 'hut');
 }
 
 function rock(scene, a, s) {

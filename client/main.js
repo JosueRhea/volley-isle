@@ -264,6 +264,8 @@ function behindNet(b, cam) {
 
 // ---------- Network handlers ----------
 net.on('welcome', (m) => {
+  world.sand.clear();
+  world.resetCrowd();
   joinWait?.(null);
   state.joined = true;
   if (m.tutorial) {
@@ -421,8 +423,11 @@ function handleEvent(ev) {
   if (ev.k === 'hit') {
     sfx.hit(ev.kind, spatial(ev.x, ev.y, ev.z));
     effects.burst(new THREE.Vector3(ev.x, ev.y, ev.z), ev.kind);
+    const prevKind = state.lastHitKind;
     state.lastHitKind = ev.kind;
     const p = state.players.get(ev.id);
+    world.react(ev.kind, p?.info.team ?? -1);
+    sfx.crowdReact(ev.kind, { prev: prevKind });
     if (ev.kind === 'spike') {
       state.tsView = state.ts = 0.2; // start the slow-mo right away; snapshots keep it in sync
       director.spike(new THREE.Vector3(ev.x, ev.y, ev.z), p?.info.team ?? 0);
@@ -452,10 +457,13 @@ function handleEvent(ev) {
     if (ev.id === state.myId) {
       floatAt(t(`call.${ev.why}`), me.x, me.y + 2.2, me.z, 'miss');
       sfx.whiff();
+      sfx.crowdReact('whiff');
     }
   } else if (ev.k === 'bounce') {
     effects.puff(ev.x, ev.z);
   } else if (ev.k === 'start') {
+    world.react('start');
+    sfx.crowdReact('start');
     sfx.whistle();
     const r = ev.rules ?? state.room?.rules;
     hud.banner(t('ban.start'), r?.mode === 'points' ? t('ban.startPoints', { n: r.points }) : t('ban.startTime', { n: r?.minutes ?? 3 }), 2200);
@@ -463,12 +471,15 @@ function handleEvent(ev) {
     sfx.whistle();
     hud.banner(t('ban.timeup'), ev.lastRally ? t('ban.lastRally') : '', 2200);
   } else if (ev.k === 'sudden') {
+    world.react('sudden');
+    sfx.crowdReact('sudden');
     sfx.slowmo();
     hud.banner(t('ban.sudden'), t('ban.suddenSub'), 2600);
   } else if (ev.k === 'abort') {
     hud.banner(t('ban.stopped'), t('ban.stoppedSub'), 2500);
   } else if (ev.k === 'net') {
     sfx.net(ev.cord, spatial(0, ev.y, ev.z));
+    sfx.crowdReact(ev.cord ? 'cord' : 'net');
     world.net.impulse(ev.z, ev.y, Math.min(ev.v, 22) * (ev.cord ? 0.6 : 1.3), ev.dir || 1);
     if (ev.cord) floatAt(t('call.netCord'), 0, ev.y + 0.8, ev.z, '');
   } else if (ev.k === 'point') {
@@ -477,18 +488,21 @@ function handleEvent(ev) {
     const sneaky = ev.reason === 'in' && state.lastHitKind === 'tip';
     const stuffed = ev.reason === 'in' && state.lastHitKind === 'block';
     if (ev.reason !== 'touches') effects.dust(ev.x, ev.z, kill);
+    if (ev.reason === 'in' || ev.reason === 'out') world.sand.impact(ev.x, ev.z, kill);
     if (kill) {
       director.impact(0.45);
       sfx.hit('spike', spatial(ev.x, 0.3, ev.z));
     }
     const mine = ev.team === state.myTeam;
-    sfx.crowd(mine);
     world.cheer?.(ev.team);
     const special = kill ? t('ban.smash') : sneaky ? t('ban.sneaky') : stuffed ? t('ban.stuffed') : null;
+    sfx.crowdReact('point', { reason: ev.reason, special: !!special });
     const pointTeam = t('ban.pointTeam', { team: teamName(ev.team) });
     const title = special ?? (mine ? t('ban.pointMine') : pointTeam);
     hud.banner(title, special ? pointTeam : t(`reason.${ev.reason}`));
   } else if (ev.k === 'over') {
+    world.react('over', ev.team);
+    sfx.crowdReact('victory');
     sfx.fanfare();
     hud.banner(t('ban.wins', { team: teamName(ev.team) }), ev.team === state.myTeam ? t('ban.victory') : t('ban.rematch'), 5500);
   }
@@ -775,6 +789,8 @@ function updateGame(realDt, now) {
     state.ball.render.set(bs.x, bs.y, bs.z).add(state.ball.offset);
   }
   const ballPos = state.ball.render;
+  world.watchBall(ballPos);
+  sfx.crowdUpdate({ phase: state.phase, ballY: ballPos.y, ballVy: bs?.vy ?? 0, ts: state.tsView, dt: realDt });
   // Predict from the server snapshot, not the per-frame extrapolation, so the spot only moves
   // when new information arrives.
   const land = live && bs ? predictLanding(state.ball.snap) : null;
@@ -804,6 +820,7 @@ function updateGame(realDt, now) {
     if (p.info.team === state.lastPointTeam) winners.push(p.char.root.position);
     const wasEffort = p.char.effort;
     const prevDive = p.prevDive ?? 0;
+    const wasGroundAir = p.sandAir ?? false;
     p.char.update(dt, {
       speed,
       ry,
@@ -823,11 +840,26 @@ function updateGame(realDt, now) {
     if (p.char.effort && !wasEffort) effects.sweat(tmpV.set(p.x, p.y + p.char.sp.top, p.z));
     if (p.dive === 2 && prevDive === 1) effects.dust(p.x, p.z);
     p.prevDive = p.dive;
+    if (wasGroundAir && p.y < 0.05 && !p.dive) {
+      world.sand.footprint(p.x, p.z, p.char.ry, -1);
+      world.sand.footprint(p.x, p.z, p.char.ry, 1);
+      effects.puff(p.x, p.z);
+    }
+    p.sandAir = p.y >= 0.05;
+    if (p.dive) {
+      p.sandSlide = (p.sandSlide ?? 0) + speed * dt;
+      if (!prevDive || p.sandSlide > 0.3) {
+        world.sand.slide(p.x, p.z, p.char.ry);
+        p.sandSlide = 0;
+      }
+    }
     if (p.y < 0.05 && !p.dive) {
       p.stride += speed * dt;
-      if (speed > 4.5 && p.stride > 0.9) {
+      if (speed > 0.8 && p.stride > 0.65) {
         p.stride = 0;
-        effects.puff(p.x, p.z);
+        p.sandFoot = -(p.sandFoot ?? 1);
+        world.sand.footprint(p.x, p.z, p.char.ry, p.sandFoot);
+        if (speed > 4.5) effects.puff(p.x, p.z);
       }
     }
   }
@@ -916,6 +948,7 @@ function updateLobby(dt, t) {
     juggleT += dt;
     ballSpot.set(sel.root.position.x, base + Math.abs(Math.sin(juggleT * 3.2)) * 0.7, sel.root.position.z);
   }
+  world.watchBall(ballSpot, false);
   ballView.update(dt, ballSpot, null, null);
 }
 
@@ -926,6 +959,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   world.update(now / 1000);
+  if (!state.joined) sfx.crowdUpdate({ phase: 'menu', dt });
   const gameDt = state.joined ? updateGame(dt, now) : (updateLobby(dt, now / 1000), dt);
   effects.update(gameDt);
   renderer.render(scene, camera);

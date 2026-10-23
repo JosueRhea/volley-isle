@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { gradientMap, withOutline } from './toon.js';
 import { BALL_RADIUS } from '../../shared/constants.js';
+import { upgradeGameProp } from './game-assets.js';
 
 function ballTexture() {
   const c = document.createElement('canvas');
@@ -21,17 +22,22 @@ function ballTexture() {
 }
 
 export function createBall(scene) {
-  const mesh = new THREE.Mesh(
+  const fallback = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_RADIUS, 24, 16),
     new THREE.MeshToonMaterial({ map: ballTexture(), gradientMap: gradientMap() }),
   );
-  withOutline(mesh, 0.025);
+  withOutline(fallback, 0.025);
+  const mesh = new THREE.Group();
+  const visual = new THREE.Group();
+  visual.add(fallback);
+  mesh.add(visual);
   scene.add(mesh);
+  upgradeGameProp(visual, 'ball');
 
   // White rim around the ink outline, shown while the ball is on the far side of the net
   // from the camera, so "over there" reads at a glance.
   const rim = new THREE.Mesh(
-    mesh.geometry,
+    fallback.geometry,
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
       transparent: true,

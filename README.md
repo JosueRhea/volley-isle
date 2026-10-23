@@ -107,6 +107,14 @@ The game is in **English** and **Español**. It picks Spanish automatically if y
 - `server/`: the authoritative game loop (60 Hz tick, 30 Hz snapshots), rooms with 4-letter codes, quick-play matchmaking, and CPU bots.
 - `client/`: Three.js toon rendering (gradient-mapped toon materials with inverted-hull outlines), procedural characters and island, plus the HUD and lobby.
 
+The coconut palms and scalloped umbrellas load Blender-authored GLBs from `client/assets/models/`, with toon materials, shared geometry, and the original procedural props as loading/error fallbacks. Umbrellas retain their four scene color schemes; palms retain whole-tree sway. Edit `assets/blender/island-props.blend`, or rebuild both exports by running `assets/blender/build_island_props.py` inside Blender (with `__file__` set to the script path). The generator creates its own scene, preserves unrelated scenes, and exports Y-up GLBs with ground-level origins. The palm is about 7 m tall (4,804 triangles); the umbrella is about 3 m tall (3,516 triangles).
+
+All six playable mascots also load Blender models, along with an 18-panel volleyball, padded net standards, and the SUN SIP snack hut. Their editable source is `assets/blender/gameplay-cast.blend`; `assets/blender/build_gameplay_assets.py` rebuilds the nine exports. Character assets are about 150–180 KB each and under 11,000 triangles. They use articulated mesh pivots identified by glTF `extras.role`, rather than skinned armatures or baked animation clips. `character-rig.js` drives two-segment arms and legs from the existing gameplay targets, keeps grounded shoes level, and animates brows, mouths, tails, gills, leaves, and smoke. The runtime adds toon shading, outlines, and per-instance team colors. Geometry is shared across instances; failed loads retain the procedural characters. The net cloth retains its spring simulation, and collision dimensions and server timing are unchanged.
+
+For animation review, run `npm run dev` and open **http://localhost:5173/animation-lab.html**. This development-only page shows all six characters in 12 action previews, with playback speed, pause, and phase scrubbing. The gameplay animation remains driven by live movement and hit events; the studio supplies sample states to the same driver. Run `npm test` for IK edge cases and the exported rig/asset-size contracts, and `npm run build` to verify the game bundle.
+
+The sand uses shared procedural grain and ripple textures, with a smoother court center. Running leaves alternating sneaker impressions, jump landings leave paired prints, dives carve short trails, and grounded point-ending balls leave impact marks. Tracks fade gradually and clear when joining a room. `client/scene/env/sand.js` keeps them in a fixed 1280×800 canvas overlay (one draw call, uploads capped at 10 Hz), below court lines and landing indicators. These are visual surface details; the playing surface and physics remain flat.
+
 Each client controls its own player's movement so it feels instant. The server clamps positions and has the final say on the ball, hits, and scoring. The client extrapolates the ball forward by about half the round-trip time so it doesn't appear late.
 
 ## Deploy
@@ -136,3 +144,7 @@ The game rules live in `server/room.js`, `server/bot.js` and `shared/`, and the 
 npm run build && npm start   # Node host on $PORT (default 3000)
 docker build -t volley-isle . && docker run -p 3000:3000 volley-isle
 ```
+
+### Bleachers and spectators
+
+Six three-tier wooden stands seat 72 instanced spectators outside the sidelines. Fans track the ball, gasp at spikes, applaud digs and blocks, and celebrate points in a staggered wave; opposing fans slump and the match winners get a longer celebration. The Blender source is `assets/blender/build_bleachers.py` / `wooden-bleachers.blend`, exported to `client/assets/models/wooden-bleachers.glb`. Crowd poses and event reactions live in `client/scene/env/crowd.js`. The crowd you hear is synthesized in `client/crowd-audio.js`: ensembles of individual formant-shaped voices and per-clapper applause are rendered once in the background, then mixed under the music as a chatter bed, a roar that builds with the rally, and reactions to every touch, net ball and point.
