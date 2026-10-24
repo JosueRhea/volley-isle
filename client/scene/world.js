@@ -6,6 +6,7 @@ import { buildOcean } from './env/water.js';
 import { buildSky } from './env/sky.js';
 import { buildIsland } from './env/island.js';
 import { buildLife } from './env/life.js';
+import { breezeTime } from './env/breeze.js';
 import { buildTournament } from './env/tournament.js';
 import { rand } from './env/util.js';
 import { NetCloth } from './net.js';
@@ -89,13 +90,16 @@ export function buildWorld(scene) {
   scene.fog = new THREE.Fog(HORIZON, 150, 430);
 
   const sunDir = new THREE.Vector3(0.45, 0.7, 0.35).normalize();
-  scene.add(new THREE.HemisphereLight(0xdaf3ff, 0xf0cf94, 1.35));
-  const sun = new THREE.DirectionalLight(0xfff1d6, 2.0);
+  scene.add(new THREE.HemisphereLight(0xe2f2ff, 0xf5d6a0, 1.45));
+  const sun = new THREE.DirectionalLight(0xffe3bd, 1.85);
   sun.position.copy(sunDir).multiplyScalar(40);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 100 });
-  sun.shadow.bias = -0.0006;
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = .025;
+  sun.shadow.radius = 3;
+  sun.shadow.intensity = .82;
   scene.add(sun);
 
   const skyUpdate = buildSky(scene, { sunDir, horizon: HORIZON });
@@ -118,6 +122,7 @@ export function buildWorld(scene) {
     update(t, dt) {
       if (dt === undefined) dt = lastT === null ? 0 : Math.min(0.1, Math.max(0, t - lastT));
       lastT = t;
+      breezeTime.value=t;
       ocean.update(t);
       skyUpdate(t);
       islandUpdate(t);

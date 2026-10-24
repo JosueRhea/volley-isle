@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { animateBreeze } from './env/breeze.js';
 import { gradientMap } from './toon.js';
 import palmUrl from '../assets/models/coconut-palm.glb?url';
 import umbrellaUrl from '../assets/models/beach-umbrella.glb?url';
@@ -22,7 +23,7 @@ export function upgradeIslandProp(parent, kind, { scale = 1, colors } = {}) {
           if (colors && source.name.startsWith('Canvas accent')) color.set(colors[0]);
           if (colors && source.name.startsWith('Canvas ivory')) color.set(colors[1]);
           materials.set(source, new THREE.MeshToonMaterial({
-            color, gradientMap: gradientMap(), side: source.side,
+            name: source.name, color, gradientMap: gradientMap(), side: source.side,
           }));
         }
         return materials.get(source);
@@ -32,6 +33,7 @@ export function upgradeIslandProp(parent, kind, { scale = 1, colors } = {}) {
       object.castShadow = true;
       object.receiveShadow = true;
     });
+    animateBreeze(model, kind);
     model.scale.setScalar(scale);
     // Hide only the fallback children: their animation references remain valid.
     for (const child of parent.children) child.visible = false;

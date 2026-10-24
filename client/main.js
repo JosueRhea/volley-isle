@@ -486,6 +486,7 @@ function handleEvent(ev) {
   if (ev.k === 'hit') {
     sfx.hit(ev.kind, spatial(ev.x, ev.y, ev.z));
     effects.burst(new THREE.Vector3(ev.x, ev.y, ev.z), ev.kind);
+    ballView.impact(ev.kind === 'spike' || ev.kind === 'block' ? 1 : .55);
     const prevKind = state.lastHitKind;
     state.lastHitKind = ev.kind;
     const p = state.players.get(ev.id);
@@ -523,7 +524,8 @@ function handleEvent(ev) {
       sfx.crowdReact('whiff');
     }
   } else if (ev.k === 'bounce') {
-    effects.puff(ev.x, ev.z);
+    effects.sandImpact(ev.x, ev.z, .4);
+    ballView.impact(.65);
   } else if (ev.k === 'start') {
     world.react('start');
     sfx.crowdReact('start');
@@ -541,16 +543,17 @@ function handleEvent(ev) {
   } else if (ev.k === 'abort') {
     hud.banner(t('ban.stopped'), t('ban.stoppedSub'), 2500);
   } else if (ev.k === 'net') {
+    ballView.impact(.7);
     sfx.net(ev.cord, spatial(0, ev.y, ev.z));
     sfx.crowdReact(ev.cord ? 'cord' : 'net');
-    world.net.impulse(ev.z, ev.y, Math.min(ev.v, 22) * (ev.cord ? 0.6 : 1.3), ev.dir || 1);
+    world.net.impulse(ev.z, ev.y, Math.min(ev.v, 22) * (ev.cord ? 0.9 : 1.65), ev.dir || 1);
     if (ev.cord) floatAt(t('call.netCord'), 0, ev.y + 0.8, ev.z, '');
   } else if (ev.k === 'point') {
     sfx.whistle();
     const kill = ev.reason === 'in' && state.lastHitKind === 'spike';
     const sneaky = ev.reason === 'in' && state.lastHitKind === 'tip';
     const stuffed = ev.reason === 'in' && state.lastHitKind === 'block';
-    if (ev.reason !== 'touches') effects.dust(ev.x, ev.z, kill);
+    if (ev.reason === 'in' || ev.reason === 'out') { effects.sandImpact(ev.x, ev.z, kill ? 1 : .55);ballView.impact(kill ? 1 : .6); }
     if (ev.reason === 'in' || ev.reason === 'out') world.sand.impact(ev.x, ev.z, kill);
     if (kill) {
       director.impact(0.45);
@@ -908,7 +911,7 @@ function updateGame(realDt, now) {
     if (wasGroundAir && p.y < 0.05 && !p.dive) {
       world.sand.footprint(p.x, p.z, p.char.ry, -1);
       world.sand.footprint(p.x, p.z, p.char.ry, 1);
-      effects.puff(p.x, p.z);
+      effects.sandImpact(p.x, p.z, Math.min(.65, p.char.landStrength * 1.5));
     }
     p.sandAir = p.y >= 0.05;
     if (p.dive) {

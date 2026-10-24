@@ -95,12 +95,18 @@ export function createBall(scene) {
 
   const axis = new THREE.Vector3();
   let t = 0;
+  let impactAge = 1, impactStrength = 0;
 
   return {
     mesh,
+    impact(strength = 1) { impactAge = 0;impactStrength = THREE.MathUtils.clamp(strength, 0, 1); },
     update(dt, pos, vel, land, landIsMine, farSide = false) {
       t += dt;
       mesh.position.copy(pos);
+      impactAge += dt;
+      const squash = impactAge < .28 ? impactStrength * .32 * Math.exp(-impactAge*14) * Math.cos(impactAge*24) : 0;
+      const vertical = 1-squash;
+      mesh.scale.set(1/Math.sqrt(vertical),vertical,1/Math.sqrt(vertical));
       rimK += ((farSide ? 1 : 0) - rimK) * (1 - Math.exp(-dt * 12));
       rim.material.uniforms.opacity.value = rimK * 0.95;
       rim.visible = rimK > 0.02;
@@ -108,7 +114,8 @@ export function createBall(scene) {
         const speed = Math.hypot(vel.vx, vel.vz);
         if (speed > 0.1) {
           axis.set(vel.vz, 0, -vel.vx).normalize();
-          mesh.rotateOnWorldAxis(axis, (speed / BALL_RADIUS) * dt * 0.5);
+          visual.rotateOnWorldAxis(axis, (speed / BALL_RADIUS) * dt * 0.5);
+          rim.rotateOnWorldAxis(axis, (speed / BALL_RADIUS) * dt * 0.5);
         }
       }
       const h = Math.max(0, pos.y - BALL_RADIUS);

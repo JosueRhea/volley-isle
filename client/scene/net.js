@@ -7,7 +7,7 @@ const ROWS = 10;
 const WAVE = 650; // spring coupling between neighbours (higher = stiffer, faster ripples)
 const PULL = 18; // pull back to rest
 const PULL_TOP = 260; // the top tape is under much more tension
-const DAMP = 3.2;
+const DAMP = 2.8;
 const STEP = 1 / 120;
 const PRESS = 900; // how hard a body pressing into the net drags the cloth along with it
 
@@ -69,13 +69,14 @@ export class NetCloth {
 
   // Push the cloth at (z, y): `strength` in m/s, `dir` = which way the ball was travelling along x.
   impulse(z, y, strength, dir) {
-    const R = 0.9;
+    const R = 1.05;
+    strength = Math.min(24, Math.max(0, strength));
     for (let iy = 0; iy <= ROWS; iy++) {
       for (let ix = 1; ix < COLS; ix++) {
         const d = Math.hypot(this.colZ[ix] - z, this.rowY[iy] - y);
         if (d < R) {
           const f = (1 - d / R) ** 2;
-          this.vel[iy * (COLS + 1) + ix] += dir * strength * f * (iy === 0 ? 0.35 : 1);
+          this.vel[iy * (COLS + 1) + ix] += dir * strength * f * (iy === 0 ? 0.50 : 1);
         }
       }
     }

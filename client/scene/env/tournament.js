@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { animateBreeze } from './breeze.js';
 import { loadGameModel } from '../game-assets.js';
 import { TEAM_COLORS } from '../../teams.js';
 import refereeUrl from '../../assets/models/referee-stand.glb?url';
@@ -29,6 +30,8 @@ export function buildTournament(scene) {
   function prop(url, name, x, z, yaw = 0, scale = 1, color) {
     const group = new THREE.Group();group.name = name;group.position.set(x,0,z);group.rotation.y = yaw;group.scale.setScalar(scale);root.add(group);
     const ready = loadGameModel(url, { teamColor: color }).then(model => {
+      if (url===refereeUrl) animateBreeze(model.root,'canopy');
+      if (url===towelUrl) animateBreeze(model.root,'towel');
       group.add(model.root);group.userData.assetLoaded = true;return model;
     }).catch(error => { console.warn(`Could not load ${name}`, error);return null; });
     pending.push(ready);return { group, ready };

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { gradientMap } from '../toon.js';
 
 const EXTENT = 52;
 let textures;
@@ -46,7 +45,7 @@ export function sandMesh(geometry, color) {
     uv[i * 2 + 1] = pos.getY(i) / EXTENT + .5;
   }
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  const material = new THREE.MeshToonMaterial({ color, gradientMap: gradientMap(), ...sandTextures(), bumpScale: .055 });
+  const material = new THREE.MeshStandardMaterial({ color, ...sandTextures(), bumpScale: .055, roughness: .94, metalness: 0 });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.receiveShadow = true;

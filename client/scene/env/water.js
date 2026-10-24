@@ -103,6 +103,9 @@ export function buildOcean(scene, horizon) {
           col = mix(col, vec3(1.0), clamp(star * tw * 3.0, 0.0, 1.0) * step(4.0, dd) * (1.0 - smoothstep(90.0, 220.0, d)));
         }
 
+        // A broad, quiet warm glint breaks up the blue between foam lines.
+        float glint = pow(max(0.0, sin(vW.x*.19 + vW.y*.13 + uTime*.7)), 18.0);
+        col += vec3(.045,.031,.012) * glint * smoothstep(2.0,15.0,dd);
         col = mix(col, uHorizon, smoothstep(170.0, 480.0, d));
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fanProp } from './fan-props.js';
 import { part, toon } from '../toon.js';
 import { TEAM_COLORS } from '../../teams.js';
 import { upgradeGameProp } from '../game-assets.js';
@@ -40,6 +41,7 @@ export function buildCrowd(scene) {
       }
     }
   }
+  for (let i=0;i<fans.length;i+=6) fans[i].prop=fanProp(scene,['flag','finger','drum','sign'][(i/6)%4],fans[i].team);
   const N = fans.length;
   const sphere = new THREE.SphereGeometry(1, 12, 8);
   const ink = new THREE.MeshBasicMaterial({ color: 0x24263d });
@@ -128,6 +130,12 @@ export function buildCrowd(scene) {
           const hx = s * THREE.MathUtils.lerp(1.03 - up * .13, clapX, clap);
           const hy = -.10 + up + Math.sin(t * 13 + f.ph) * hype * .20 - sulk * .2;
           place(hands,j,hx,hy+clap*.35,.23+clap*.75,f.r*.24);
+          if (f.prop && s===1) {
+            const drum=f.prop.kind==='drum';
+            v.set(drum?0:hx,drum?-.2:hy+clap*.35,drum?1.2:.23+clap*.75).applyMatrix4(M);
+            f.prop.root.position.copy(v);f.prop.root.quaternion.copy(q);
+            f.prop.update(t+f.ph,Math.max(hype,clap));
+          }
           const blink = (Math.sin(f.ph * 13.7 + Math.floor(t * 3) * 1.3) > .97 ? .12 : 1) * (1 - sulk * .4);
           place(whites,j,s*.32,.28,.85,f.r*.29,f.r*.29*blink,f.r*.29);
           const gazeY = watching ? THREE.MathUtils.clamp((target.y - p.y) * .035, -.08,.10) : 0;

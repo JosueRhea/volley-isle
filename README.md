@@ -158,3 +158,7 @@ Six three-tier wooden stands seat 72 instanced spectators outside the sidelines.
 The animation studio's **Cheer** preview shows each character's celebration: Bongo's chest drums, Pinchy's claw dance, Pip's wing flaps, Tiki's hula, Mochi's soft bounces, and Rocco's fist pumps. The existing Blender face pivots now support laughs, effort expressions, and airborne gasps; landing squash varies with impact and character softness.
 
 Pip now has a separate `LowerBeak` pivot, authored in `build_gameplay_assets.py` and saved in `assets/blender/pip-face.blend`; it opens for cheers and jumps.
+
+### Island motion and impact polish
+
+The ball briefly squashes on contacts without changing its physics radius. Hard landings throw a low radial sand burst, and the net has a broader, capped impulse. Twelve crowd members carry animated flags, foam fingers, drums, or signs. `env/breeze.js` deforms the loaded palm fronds, umbrella/referee canopy edges, and towel corners on the GPU, using the same deformation for shadows; rigid poles, sandals, and the referee remain still. Warm directional light, wider shadow filtering, rough sand lighting, and a restrained ocean glint complete the local visual pass.

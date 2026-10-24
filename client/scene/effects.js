@@ -48,6 +48,22 @@ export class Effects {
     }
   }
 
+  // A low, radial fan of sand: hard impacts kick grains outward, not confetti upward.
+  sandImpact(x, z, strength = 1) {
+    const k = THREE.MathUtils.clamp(strength, .2, 1);
+    const count = Math.round(16 + 28*k);
+    for(let i=0;i<count;i++) {
+      const a = Math.PI*2*(i/count) + Math.random()*.2;
+      const speed = (2 + Math.random()*3)*k;
+      const mesh = new THREE.Mesh(this.geo,new THREE.MeshBasicMaterial({color:i%3 ? 0xe8c78d : 0xffe7b3,transparent:true}));
+      mesh.position.set(x,.07,z);mesh.scale.set(.5+Math.random()*.7,.35,.5);
+      this.spawn(mesh,{v:new THREE.Vector3(Math.cos(a)*speed,.9+Math.random()*1.6*k,Math.sin(a)*speed),gravity:9,life:.45+Math.random()*.25});
+    }
+    const ring = new THREE.Mesh(this.ringGeo,new THREE.MeshBasicMaterial({color:0xeed5a5,transparent:true}));
+    ring.position.set(x,.035,z);ring.rotation.x=Math.PI/2;
+    this.spawn(ring,{ring:true,grow:3+4*k,life:.32});
+  }
+
   // Effort sweat drops flicking off the head.
   sweat(pos) {
     this.particles(pos, 4, [0x9fe6ff, 0xd9f6ff], 2.2, 2.5, 10, 0.45);
@@ -73,6 +89,7 @@ export class Effects {
       } else {
         it.v.y -= it.gravity * dt;
         it.mesh.position.addScaledVector(it.v, dt);
+        it.mesh.position.y = Math.max(.025,it.mesh.position.y);
         it.mesh.rotation.x += dt * 8;
         it.mesh.rotation.y += dt * 6;
       }
