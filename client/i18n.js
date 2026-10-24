@@ -10,7 +10,7 @@ const STR = {
     'key.space': 'Space',
 
     // Title screen
-    'lobby.sub': 'Island critter volleyball · online 2v2',
+    'lobby.sub': 'Island critter volleyball · online 1v1 & 2v2',
     'lobby.name': 'Your name',
     'lobby.namePh': 'Player',
     'lobby.quick': 'Quick Play',
@@ -116,6 +116,8 @@ const STR = {
     'ban.suddenSub': 'Tied! Next point wins',
     'clock.sudden': 'SUDDEN DEATH',
     'clock.to': 'to {n}',
+    'rules.format': 'Players',
+    'err.singlesFull': '1v1 needs at most two players in the room',
     'rules.title': 'Match',
     'rules.time': '⏱ {n} min',
     'rules.points': '🏐 {n} pts',
@@ -239,7 +241,7 @@ const STR = {
     'team.1': 'Atardecer',
     'key.space': 'Espacio',
 
-    'lobby.sub': 'Vóley de criaturas isleñas · 2 vs 2 en línea',
+    'lobby.sub': 'Vóley de criaturas isleñas · 1v1 y 2v2 en línea',
     'lobby.name': 'Tu nombre',
     'lobby.namePh': 'Jugador',
     'lobby.quick': 'Partida rápida',
@@ -340,6 +342,8 @@ const STR = {
     'ban.suddenSub': '¡Empate! El siguiente punto gana',
     'clock.sudden': 'MUERTE SÚBITA',
     'clock.to': 'a {n}',
+    'rules.format': 'Jugadores',
+    'err.singlesFull': 'Para jugar 1v1 debe haber como máximo dos jugadores en la sala',
     'rules.title': 'Partido',
     'rules.time': '⏱ {n} min',
     'rules.points': '🏐 {n} pts',

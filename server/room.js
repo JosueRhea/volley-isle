@@ -44,6 +44,7 @@ export class Room {
     this.isPublic = isPublic;
     this.tutorial = tutorial;
     this.rules = { ...DEFAULT_RULES };
+    this.teamSize = TEAM_SIZE;
     this.clock = null; // seconds left in a timed match (null in points mode / outside matches)
     this.suddenDeath = false;
     this.players = [];
@@ -85,7 +86,7 @@ export class Room {
   }
 
   makePlayer(team, slot, name, ws, species) {
-    const h = homePos(team, slot);
+    const h = homePos(team, slot, this.teamSize);
     return {
       id: nextId++, name, team, slot, bot: !ws, ws,
       key: ws ? crypto.randomUUID() : null, heldUntil: 0, gone: false, // reconnect identity / state
@@ -109,7 +110,7 @@ export class Room {
 
   freeSlot(team) {
     const used = new Set(this.members(team).map((p) => p.slot));
-    for (let s = 0; s < TEAM_SIZE; s++) if (!used.has(s)) return s;
+    for (let s = 0; s < this.teamSize; s++) if (!used.has(s)) return s;
     return -1;
   }
 
@@ -142,7 +143,7 @@ export class Room {
       this.hostId ??= p.id;
       this.rosterDirty = true;
       this.welcome(p);
-      const h = homePos(team, slot);
+      const h = homePos(team, slot, this.teamSize);
       this.teleport(p, h.x, h.z);
       return p;
     }
@@ -222,7 +223,7 @@ export class Room {
     p.team = team;
     p.slot = slot;
     if (this.fillCpu) this.players.push(this.makeBot(oldTeam, oldSlot));
-    const h = homePos(team, slot);
+    const h = homePos(team, slot, this.teamSize);
     this.teleport(p, h.x, h.z);
     this.rosterDirty = true;
   }
@@ -240,6 +241,24 @@ export class Room {
     if (this.isPublic || this.tutorial || this.phase !== 'lobby' || p.id !== this.hostId || !r) return;
     if (r.mode === 'time' && MATCH_MINUTES.includes(r.minutes)) this.rules = { ...this.rules, mode: 'time', minutes: r.minutes };
     if (r.mode === 'points' && MATCH_POINTS.includes(r.points)) this.rules = { ...this.rules, mode: 'points', points: r.points };
+    this.rosterDirty = true;
+  }
+
+  setTeamSize(p, size) {
+    if (this.isPublic || this.tutorial || this.phase !== 'lobby' || p.id !== this.hostId || ![1, 2].includes(size) || size === this.teamSize) return;
+    const humans = this.players.filter(q => !q.bot);
+    if (humans.length > size * 2) return this.send(p, { t: 'notice', code: 'singlesFull', msg: '1v1 needs at most two players in the room' });
+    // Keep human identities and reconnect keys. Remove only bots, then refill the new format.
+    this.players = humans;
+    this.teamSize = size;
+    if (size === 1 && humans.length === 2 && humans[0].team === humans[1].team) {
+      const guest = humans.find(q => q.id !== this.hostId);
+      guest.team = 1 - p.team;
+    }
+    for (const team of [0, 1]) this.members(team).forEach((q, slot) => { q.slot = slot; });
+    if (this.fillCpu) this.fillBots();
+    this.serveIdx = [0, 0];
+    this.enterLobby();
     this.rosterDirty = true;
   }
 
@@ -291,7 +310,7 @@ export class Room {
     this.touches = 0;
     this.lastTeam = null;
     for (const p of this.players) {
-      const h = homePos(p.team, p.slot);
+      const h = homePos(p.team, p.slot, this.teamSize);
       this.teleport(p, h.x, h.z);
     }
     this.tossWarmupBall();
@@ -486,7 +505,7 @@ export class Room {
     this.lastTeam = null;
     this.lastHitter = null;
     for (const p of this.players) {
-      const h = homePos(p.team, p.slot);
+      const h = homePos(p.team, p.slot, this.teamSize);
       p.swingT = 0;
       this.teleport(p, h.x, h.z);
     }
@@ -802,7 +821,7 @@ export class Room {
         cpu: this.fillCpu,
         rules: this.rules,
         isPublic: this.isPublic,
-        teamSize: TEAM_SIZE,
+        teamSize: this.teamSize,
         players: this.players.map(({ id, name, team, slot, bot, look, heldUntil }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0 })),
       }));
     }

@@ -95,6 +95,9 @@ export function attach(ws, room, { onJoin, onLeave, rejoinTicket } = {}) {
       case 'cpu':
         if (player) room.setCpu(player, m.on), room.markActive(player);
         break;
+      case 'format':
+        if (player) room.setTeamSize(player, m.teamSize), room.markActive(player);
+        break;
       case 'rules':
         if (player) room.setRules(player, m.rules), room.markActive(player);
         break;
@@ -113,7 +116,7 @@ export function attach(ws, room, { onJoin, onLeave, rejoinTicket } = {}) {
         // A reconnect with a key we're still holding a spot for takes that spot back.
         player = typeof m.key === 'string' ? room.reattach(m.key, ws) : null;
         if (!player) {
-          if (room.humanCount >= MAX_HUMANS) return rejectSocket(ws, 'roomFull');
+          if (room.humanCount >= room.teamSize * 2) return rejectSocket(ws, 'roomFull');
           player = room.addHuman(ws, cleanName(m.name), cleanSpecies(m.char));
           if (!player) return rejectSocket(ws, 'roomFull');
         }

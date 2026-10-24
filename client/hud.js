@@ -154,11 +154,14 @@ export class Hud {
       const on = rules.mode === mode && (mode === 'time' ? rules.minutes : rules.points) === n;
       return `<button data-cmd="rules" data-mode="${mode}" data-n="${n}" class="${on ? 'on' : ''}">${t(`rules.${mode}`, { n })}</button>`;
     };
+    const format = canPick
+      ? `<span>${t('rules.format')}</span><div class="seg">${[1,2].map(size => `<button data-cmd="format" data-size="${size}" class="${r.teamSize === size ? 'on' : ''}" aria-pressed="${r.teamSize === size}">${size}v${size}</button>`).join('')}</div>`
+      : `<b>${r.teamSize}v${r.teamSize}</b>`;
     this.set(
       'pmRules',
-      canPick
+      format + (canPick
         ? `<span>${t('rules.title')}</span><div class="seg">${[2, 3, 5].map((n) => opt('time', n)).join('')}</div><div class="seg">${[7, 11, 15].map((n) => opt('points', n)).join('')}</div>`
-        : `<span>${t('rules.title')}:</span> <b>${desc}</b>`,
+        : `<span>${t('rules.title')}:</span> <b>${desc}</b>`),
     );
     this.set(
       'pmActions',

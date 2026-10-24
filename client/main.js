@@ -575,6 +575,7 @@ function handleEvent(ev) {
 }
 
 hud.on('team', (d) => net.send({ t: 'team', team: Number(d.team) }));
+hud.on('format', (d) => net.send({ t: 'format', teamSize: Number(d.size) }));
 hud.on('cpu', () => net.send({ t: 'cpu', on: !state.room?.cpu }));
 hud.on('start', () => net.send({ t: 'start' }));
 hud.on('rules', (d) => {

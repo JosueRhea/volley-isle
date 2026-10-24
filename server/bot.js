@@ -6,8 +6,9 @@ const CONTACT_Y = 1.2; // comfortable height for passes and sets
 const SPIKE_Y = 3.1; // contact height near the top of a jump
 const JUMP_LEAD = PLAYER.jumpVel / PLAYER.gravity; // seconds from takeoff to jump apex
 
-export function homePos(team, slot) {
+export function homePos(team, slot, teamSize = 2) {
   const s = sideSign(team);
+  if (teamSize === 1) return { x: s * 5.2, z: 0 };
   return slot === 0 ? { x: s * 6.2, z: -1.8 } : { x: s * 2.6, z: 1.8 };
 }
 
@@ -55,7 +56,7 @@ export function updateBot(bot, room, dt) {
   const s = sideSign(bot.team);
   const ball = room.ball;
   const serving = room.phase === 'serve' && room.server === bot;
-  let target = homePos(bot.team, bot.slot);
+  let target = homePos(bot.team, bot.slot, room.teamSize);
   let jump = false;
 
   if (ai.lastSeq !== room.hitSeq) {

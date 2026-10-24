@@ -1,6 +1,6 @@
 # Volley Isle 🏐🏝️
 
-Online 2v2 cartoon volleyball on a cel-shaded island, built with Three.js and a Node WebSocket server.
+Online 1v1 and 2v2 cartoon volleyball on a cel-shaded island, built with Three.js and a Node WebSocket server.
 
 ## Run locally
 
@@ -162,3 +162,7 @@ Pip now has a separate `LowerBeak` pivot, authored in `build_gameplay_assets.py`
 ### Island motion and impact polish
 
 The ball briefly squashes on contacts without changing its physics radius. Hard landings throw a low radial sand burst, and the net has a broader, capped impulse. Twelve crowd members carry animated flags, foam fingers, drums, or signs. `env/breeze.js` deforms the loaded palm fronds, umbrella/referee canopy edges, and towel corners on the GPU, using the same deformation for shadows; rigid poles, sandals, and the referee remain still. Warm directional light, wider shadow filtering, rough sand lighting, and a restrained ocean glint complete the local visual pass.
+
+### Singles (1v1)
+
+Create a private room and choose **1v1** under **Players** before starting. CPU fill gives you one opponent; a friend joining by code replaces that bot. Disable CPU fill to wait for a human opponent. The format stays selected across rematches and held-spot reconnects. Switching to singles balances up to two humans onto opposite sides; rooms with more humans must wait for players to leave. Quick Play and the tutorial retain their existing 2v2/practice setup. Singles uses the same court, scoring options, and three-touch limit, including self-sets.
