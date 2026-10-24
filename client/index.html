@@ -24,6 +24,13 @@
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h14" /><path d="m13 6 6 6-6 6" /></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></symbol>
       <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" /><path d="M16 4.8a3.4 3.4 0 0 1 0 6.4" /><path d="M18.5 14.4c1.9.9 3 2.9 3 5.6" /></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L12 5.6" /><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4.5v15l12.5-7.5z" /></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2" /><path d="M9.5 2.5h5" /></symbol>
+      <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 12a8 8 0 0 0 8 4" /><path d="M7.5 13.5a12 12 0 0 0 8.5 6.5" /><path d="M12 12a8 8 0 0 0-7.46 4.93" /><path d="M12.95 7.35a12 12 0 0 0-9.88 4.11" /><path d="M12 12a8 8 0 0 0-.54-8.93" /><path d="M15.55 15.15a12 12 0 0 0 1.38-10.18" /></symbol>
+      <symbol id="i-crown" viewBox="0 0 24 24"><path fill="currentColor" d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7" /></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 20.5c0-4.2 3.6-7 8-7s8 2.8 8 7" /></symbol>
       <symbol id="i-sfx" viewBox="0 0 24 24"><path fill="currentColor" d="m11 3 2 5.6L18.6 10.6 13 12.6 11 18.2 9 12.6 3.4 10.6 9 8.6z" /><path d="M19 15.5v5" /><path d="M16.5 18h5" /></symbol>
     </svg>
     <div id="app"></div>
@@ -99,14 +106,18 @@
       </div>
       <div id="prematch" class="hidden">
         <div class="pm-head">
-          <div class="pm-title" data-i18n="pm.title"></div>
-          <div class="pm-sub" data-i18n="pm.sub"></div>
+          <span class="pm-ball"></span>
+          <div>
+            <div class="pm-title" data-i18n="pm.title"></div>
+            <div class="pm-sub" data-i18n="pm.sub"></div>
+          </div>
         </div>
         <div class="pm-teams">
           <div class="pm-team" id="pm0"></div>
           <div class="pm-vs">VS</div>
           <div class="pm-team" id="pm1"></div>
         </div>
+        <h2 class="sec-label" data-i18n="pm.settings"></h2>
         <div class="pm-rules" id="pmRules"></div>
         <div class="pm-actions" id="pmActions"></div>
       </div>
