@@ -183,6 +183,10 @@ function pick(i, celebrate = false) {
   if (celebrate) {
     joyT = 0;
     sfx.jump();
+    const info = document.querySelector('.char-info');
+    info.classList.remove('char-swap');
+    void info.offsetWidth; // restart the fade-in
+    info.classList.add('char-swap');
   }
 }
 document.getElementById('char-prev').onclick = () => pick(picked - 1, true);
@@ -676,7 +680,16 @@ if (new URLSearchParams(location.search).get('play') === 'quick') {
 }
 document.getElementById('btn-create').onclick = () => join('create');
 document.getElementById('btn-join').onclick = () => join('code');
-document.getElementById('code').addEventListener('keydown', (e) => e.key === 'Enter' && join('code'));
+const codeInput = document.getElementById('code');
+codeInput.addEventListener('keydown', (e) => e.key === 'Enter' && join('code'));
+// Keep the code tidy as you type, and light up Join once it's complete.
+function syncCode() {
+  const clean = codeInput.value.toUpperCase().replace(/[^A-Z]/g, '');
+  if (clean !== codeInput.value) codeInput.value = clean;
+  codeInput.parentElement.classList.toggle('ready', clean.length === 4);
+}
+codeInput.addEventListener('input', syncCode);
+syncCode();
 
 // ---------- Net contact ----------
 // The visible cloth reacts to whatever touches it: the ball sinking in, bodies leaning on it,
@@ -965,11 +978,12 @@ function updateGame(realDt, now) {
 const lobbyCam = new THREE.Vector3();
 const lobbyLook = new THREE.Vector3();
 const ballSpot = new THREE.Vector3();
+const LOBBY_Z = -3.6; // lower = the whole scene sits further right on screen, clear of the wide menu card
 function updateLobby(dt, t) {
   // Camera faces the lineup from the -x side; screen-right is +z, which keeps the cast clear of the menu.
-  lobbyCam.set(SHOWCASE.x - 8.5 + Math.sin(t * 0.3) * 0.4, 2.3 + Math.sin(t * 0.4) * 0.15, -2.6);
+  lobbyCam.set(SHOWCASE.x - 8.5 + Math.sin(t * 0.3) * 0.4, 2.3 + Math.sin(t * 0.4) * 0.15, LOBBY_Z);
   camera.position.lerp(lobbyCam, 1 - Math.exp(-dt * 3));
-  lobbyLook.set(SHOWCASE.x, 1.0, -2.6);
+  lobbyLook.set(SHOWCASE.x, 1.0, LOBBY_Z);
   camera.lookAt(lobbyLook);
 
   const others = lineup.filter((_, i) => i !== picked);

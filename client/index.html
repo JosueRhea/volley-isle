@@ -21,6 +21,9 @@
       <symbol id="i-sound" viewBox="0 0 24 24"><path fill="currentColor" d="M11 4.5 6 8.5H3v7h3l5 4z" /><path d="M15.5 9a4.2 4.2 0 0 1 0 6" /><path d="M18.5 6a8.5 8.5 0 0 1 0 12" /></symbol>
       <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" d="M11 4.5 6 8.5H3v7h3l5 4z" /><path d="m16 9.5 5 5" /><path d="m21 9.5-5 5" /></symbol>
       <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2V16" /><circle fill="currentColor" cx="6.2" cy="18" r="2.8" /><circle fill="currentColor" cx="17.2" cy="16" r="2.8" /></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h14" /><path d="m13 6 6 6-6 6" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" /><path d="M16 4.8a3.4 3.4 0 0 1 0 6.4" /><path d="M18.5 14.4c1.9.9 3 2.9 3 5.6" /></symbol>
       <symbol id="i-sfx" viewBox="0 0 24 24"><path fill="currentColor" d="m11 3 2 5.6L18.6 10.6 13 12.6 11 18.2 9 12.6 3.4 10.6 9 8.6z" /><path d="M19 15.5v5" /><path d="M16.5 18h5" /></symbol>
     </svg>
     <div id="app"></div>
@@ -124,29 +127,47 @@
           <button data-value="en">EN</button><button data-value="es">ES</button>
         </div>
         <p class="sub" data-i18n="lobby.sub"></p>
-        <div class="picker">
-          <button id="char-prev" class="arrow" data-i18n-label="lobby.prevChar">◀</button>
-          <div class="char-info">
-            <div id="char-name"></div>
-            <div id="char-title"></div>
+
+        <section class="lobby-sec">
+          <h2 class="sec-label" data-i18n="lobby.you"></h2>
+          <div class="picker">
+            <button id="char-prev" class="arrow" data-i18n-label="lobby.prevChar">◀</button>
+            <div class="char-info">
+              <div id="char-name"></div>
+              <div id="char-title"></div>
+            </div>
+            <button id="char-next" class="arrow" data-i18n-label="lobby.nextChar">▶</button>
           </div>
-          <button id="char-next" class="arrow" data-i18n-label="lobby.nextChar">▶</button>
-        </div>
-        <p id="char-line" class="tagline"></p>
-        <label><span data-i18n="lobby.name"></span> <input id="name" maxlength="16" data-i18n-ph="lobby.namePh" autocomplete="off" /></label>
-        <button id="btn-quick" class="primary" data-i18n="lobby.quick"></button>
-        <button id="btn-create" data-i18n="lobby.create"></button>
-        <div class="join">
-          <input id="code" maxlength="4" data-i18n-ph="lobby.codePh" autocomplete="off" />
-          <button id="btn-join" data-i18n="lobby.join"></button>
-        </div>
+          <p id="char-line" class="tagline"></p>
+          <label class="name-field"><span data-i18n="lobby.name"></span><input id="name" maxlength="16" data-i18n-ph="lobby.namePh" autocomplete="off" /></label>
+        </section>
+
+        <section class="lobby-sec">
+          <h2 class="sec-label" data-i18n="lobby.play"></h2>
+          <button id="btn-quick" class="primary cta">
+            <span class="cta-ball"></span>
+            <span class="cta-text"><span class="cta-title" data-i18n="lobby.quick"></span><small data-i18n="lobby.quickSub"></small></span>
+            <svg class="ico cta-go"><use href="#i-arrow" /></svg>
+          </button>
+          <div class="friends">
+            <div class="friends-label"><svg class="ico"><use href="#i-users" /></svg><span data-i18n="lobby.friends"></span></div>
+            <button id="btn-create" class="with-ico"><svg class="ico plus"><use href="#i-plus" /></svg><span data-i18n="lobby.create"></span></button>
+            <div class="or"><span data-i18n="lobby.or"></span></div>
+            <div class="join">
+              <input id="code" maxlength="4" data-i18n-ph="lobby.codePh" autocomplete="off" spellcheck="false" />
+              <button id="btn-join" class="with-ico"><span data-i18n="lobby.join"></span><svg class="ico enter"><use href="#i-arrow" /></svg></button>
+            </div>
+          </div>
+        </section>
+
         <p id="lobby-status" aria-live="polite"></p>
         <p id="lobby-error" role="alert"></p>
         <div id="turnstile"></div>
-        <button id="btn-tutorial"><span class="with-ico"><svg class="ico"><use href="#i-cap" /></svg><span data-i18n="lobby.tutorial"></span></span> <small id="tut-new" data-i18n="lobby.tutorialNew"></small></button>
+
         <div class="lobby-extra">
-          <button class="with-ico" data-open="settings"><svg class="ico"><use href="#i-gear" /></svg><span data-i18n="lobby.settings"></span></button>
-          <button class="with-ico" data-open="help"><svg class="ico"><use href="#i-help" /></svg><span data-i18n="lobby.help"></span></button>
+          <button id="btn-tutorial"><span class="with-ico"><svg class="ico"><use href="#i-cap" /></svg><span data-i18n="lobby.tutorial"></span></span> <small id="tut-new" data-i18n="lobby.tutorialNew"></small></button>
+          <button class="icon-btn spin-ico" data-open="settings" data-i18n-title="lobby.settings" data-i18n-label="lobby.settings"><svg class="ico"><use href="#i-gear" /></svg></button>
+          <button class="icon-btn" data-open="help" data-i18n-title="lobby.help" data-i18n-label="lobby.help"><svg class="ico"><use href="#i-help" /></svg></button>
         </div>
         <p class="note" data-i18n="lobby.note"></p>
       </div>
