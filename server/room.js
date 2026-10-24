@@ -1,6 +1,6 @@
 import {
   COURT, NET, BALL_RADIUS, PLAYER, SWING_TIME, HIT_COOLDOWN, MAX_TOUCHES, TEAM_SIZE, WIN_SCORE, CHARACTERS, SLOWMO,
-  DIVE,
+  DIVE, BALL_COLORS,
 } from '../shared/constants.js';
 import {
   sideSign, stepBall, clampPlayer, arcVelocity, directVelocity, yAtX, clamp, diveState, serveZone, meterValue,
@@ -52,6 +52,7 @@ export class Room {
     this.emptyFor = 0; // seconds without a single human (the hosts' idle watchdog reads this)
     this.hostId = null;
     this.fillCpu = true;
+    this.ballColor = BALL_COLORS[0];
     this.score = [0, 0];
     this.servingTeam = 0;
     this.serveIdx = [0, 0];
@@ -233,6 +234,13 @@ export class Room {
     this.fillCpu = !!on;
     if (this.fillCpu) this.fillBots();
     else this.players = this.players.filter((q) => !q.bot);
+    this.rosterDirty = true;
+  }
+
+  // Host picks the ball colour during warm-up; everyone in the room plays with it.
+  setBallColor(p, color) {
+    if (this.tutorial || this.phase !== 'lobby' || p.id !== this.hostId || !BALL_COLORS.includes(color)) return;
+    this.ballColor = color;
     this.rosterDirty = true;
   }
 
@@ -820,6 +828,7 @@ export class Room {
         host: this.hostId,
         cpu: this.fillCpu,
         rules: this.rules,
+        ball: this.ballColor,
         isPublic: this.isPublic,
         teamSize: this.teamSize,
         players: this.players.map(({ id, name, team, slot, bot, look, heldUntil }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0 })),

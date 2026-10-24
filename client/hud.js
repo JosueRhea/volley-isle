@@ -1,8 +1,10 @@
-import { MAX_TOUCHES } from '../shared/constants.js';
+import { MAX_TOUCHES, BALL_COLORS } from '../shared/constants.js';
 import { t, teamName } from './i18n.js';
 import { TEAM_COLORS } from './teams.js';
+import { BALL_SKINS } from './scene/ball.js';
 
 const $ = (id) => document.getElementById(id);
+const ico = (name) => `<svg class="ico"><use href="#i-${name}" /></svg>`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 // Button glyphs per input device: keycaps on keyboard, colored round buttons on pad/touch.
@@ -120,7 +122,7 @@ export class Hud {
     this.set('roster', html);
   }
 
-  // Pre-match waiting room: team cards with join buttons, host controls.
+  // Pre-match waiting room: team cards with join buttons, match settings, then the actions.
   prematch(show, r) {
     $('prematch').classList.toggle('hidden', !show);
     $('roster').classList.toggle('hidden', show);
@@ -132,44 +134,81 @@ export class Hud {
       const rows = [];
       for (let i = 0; i < r.teamSize; i++) {
         const p = members[i];
-        if (!p) rows.push(`<div class="pm-slot empty">${t('pm.open')}</div>`);
+        if (!p) rows.push(`<div class="pm-slot empty">${ico('plus')}${t('pm.open')}</div>`);
         else {
-          const crown = p.id === r.host ? `<span class="crown" title="${t('hud.host')}">♛</span>` : '';
-          rows.push(`<div class="pm-slot ${p.id === r.myId ? 'me' : ''}">${esc(p.name)} ${crown}${pingBadge(p, r.pings)}</div>`);
+          const crown = p.id === r.host ? `<span class="crown" title="${t('hud.host')}">${ico('crown')}</span>` : '';
+          const you = p.id === r.myId ? `<span class="pm-tag">${t('pm.youTag')}</span>` : '';
+          rows.push(
+            `<div class="pm-slot ${you ? 'me' : ''}"><span class="pm-pname">${esc(p.name)}</span>${crown}${you}${pingBadge(p, r.pings)}</div>`,
+          );
         }
       }
       const humansThere = members.filter((p) => !p.bot).length;
       const canJoin = me && me.team !== team && humansThere < r.teamSize;
-      const btn = me?.team === team
-        ? `<div class="pm-you">${t('pm.here')}</div>`
-        : `<button data-cmd="team" data-team="${team}" ${canJoin ? '' : 'disabled'}>${t('pm.join', { team: teamName(team) })}</button>`;
-      this.set(`pm${team}`, `<div class="pm-name" style="--c:${TEAM_COLORS[team].css}">${teamName(team)}</div>${rows.join('')}${btn}`);
+      const mine = me?.team === team;
+      const btn = mine
+        ? `<div class="pm-you">${ico('check')}${t('pm.here')}</div>`
+        : `<button class="pm-join with-ico" data-cmd="team" data-team="${team}" ${canJoin ? '' : 'disabled'}><span>${t('pm.join')}</span><svg class="ico"><use href="#i-arrow" /></svg></button>`;
+      const card = $(`pm${team}`);
+      card.classList.toggle('mine', mine);
+      card.style.setProperty('--c', TEAM_COLORS[team].css);
+      this.set(
+        `pm${team}`,
+        `<div class="pm-name"><span class="pm-tname"><small>${t('pm.team')}</small>${teamName(team)}</span><span class="pm-count">${ico('user')}${members.length}/${r.teamSize}</span></div>${rows.join('')}${btn}`,
+      );
     }
     const ready = r.players.some((p) => p.team === 0) && r.players.some((p) => p.team === 1);
-    // Match format: the host of a private room picks it; everyone else sees what's been chosen.
+    // Match settings: the host of a private room picks them; everyone else sees what's been chosen.
     const rules = r.rules ?? { mode: 'time', minutes: 3 };
     const desc = rules.mode === 'time' ? t('rules.descTime', { n: rules.minutes }) : t('rules.descPoints', { n: rules.points });
+    const modeIco = { time: ico('clock'), points: ico('ball') };
     const canPick = isHost && !r.isPublic;
     const opt = (mode, n) => {
       const on = rules.mode === mode && (mode === 'time' ? rules.minutes : rules.points) === n;
-      return `<button data-cmd="rules" data-mode="${mode}" data-n="${n}" class="${on ? 'on' : ''}">${t(`rules.${mode}`, { n })}</button>`;
+      return `<button data-cmd="rules" data-mode="${mode}" data-n="${n}" class="${on ? 'on' : ''}" aria-pressed="${on}">${modeIco[mode]}${t(`rules.${mode}`, { n })}</button>`;
     };
-    const format = canPick
-      ? `<span>${t('rules.format')}</span><div class="seg">${[1,2].map(size => `<button data-cmd="format" data-size="${size}" class="${r.teamSize === size ? 'on' : ''}" aria-pressed="${r.teamSize === size}">${size}v${size}</button>`).join('')}</div>`
-      : `<b>${r.teamSize}v${r.teamSize}</b>`;
+    const size = (n) =>
+      `<button data-cmd="format" data-size="${n}" class="${r.teamSize === n ? 'on' : ''}" aria-pressed="${r.teamSize === n}">${n}v${n}</button>`;
+    const row = (label, control) => `<span class="pm-label">${label}</span><div class="pm-ctrl">${control}</div>`;
+    const cpuState = t(r.cpu ? 'pm.on' : 'pm.off');
+    // Ball colour is room-wide: the host's swatches are buttons, everyone else sees the current one.
+    const ball = BALL_COLORS.includes(r.ball) ? r.ball : BALL_COLORS[0];
+    const swatch = (name, pick) => {
+      const { a, b } = BALL_SKINS[name];
+      const on = name === ball;
+      return pick
+        ? `<button data-cmd="ball" data-color="${name}" class="swatch ${on ? 'on' : ''}" style="--a:${a};--b:${b}" title="${t(`ball.${name}`)}" aria-label="${t(`ball.${name}`)}" aria-pressed="${on}"></button>`
+        : `<span class="swatch" style="--a:${a};--b:${b}"></span>`;
+    };
     this.set(
       'pmRules',
-      format + (canPick
-        ? `<span>${t('rules.title')}</span><div class="seg">${[2, 3, 5].map((n) => opt('time', n)).join('')}</div><div class="seg">${[7, 11, 15].map((n) => opt('points', n)).join('')}</div>`
-        : `<span>${t('rules.title')}:</span> <b>${desc}</b>`),
+      row(t('rules.format'), canPick ? `<div class="seg">${[1, 2].map(size).join('')}</div>` : `<b class="pm-chip">${r.teamSize}v${r.teamSize}</b>`) +
+        row(
+          t('pm.length'),
+          canPick
+            ? `<div class="seg">${[2, 3, 5].map((n) => opt('time', n)).join('')}</div><span class="pm-or">${t('lobby.or')}</span><div class="seg">${[7, 11, 15].map((n) => opt('points', n)).join('')}</div>`
+            : `<b class="pm-chip">${modeIco[rules.mode]}${desc}</b>`,
+        ) +
+        row(
+          t('pm.cpu'),
+          isHost
+            ? `<button data-cmd="cpu" class="switch ${r.cpu ? 'on' : ''}" role="switch" aria-checked="${!!r.cpu}"><i></i><span>${cpuState}</span></button><small>${t('pm.cpuSub')}</small>`
+            : `<b class="pm-chip">${cpuState}</b>`,
+        ) +
+        row(
+          t('pm.ball'),
+          isHost
+            ? `<div class="swatches">${BALL_COLORS.map((name) => swatch(name, true)).join('')}</div><small>${t(`ball.${ball}`)}</small>`
+            : `<b class="pm-chip">${swatch(ball, false)}${t(`ball.${ball}`)}</b>`,
+        ),
     );
+    const invite = `<button data-cmd="invite" class="with-ico"><svg class="ico"><use href="#i-link" /></svg><span>${t('pm.invite')}</span></button>`;
     this.set(
       'pmActions',
       isHost
-        ? `<button data-cmd="cpu" class="toggle ${r.cpu ? 'on' : ''}">${t('pm.cpu')} <b>${r.cpu ? t('pm.on') : t('pm.off')}</b></button>
-           <button data-cmd="invite">${t('pm.invite')}</button>
-           <button data-cmd="start" class="primary" ${ready ? '' : 'disabled'}>${t('pm.start')}</button>`
-        : `<button data-cmd="invite">${t('pm.invite')}</button><div class="pm-wait">${t('pm.wait')}</div>`,
+        ? `${invite}<button data-cmd="start" class="primary pm-start with-ico" ${ready ? '' : 'disabled'}><svg class="ico"><use href="#i-play" /></svg><span>${t('pm.start')}</span></button>` +
+            (ready ? '' : `<div class="pm-hint">${t('pm.need')}</div>`)
+        : `${invite}<div class="pm-wait"><span class="pm-dot"></span>${t('pm.wait')}</div>`,
     );
   }
 

@@ -3,12 +3,22 @@ import { gradientMap, withOutline } from './toon.js';
 import { BALL_RADIUS } from '../../shared/constants.js';
 import { upgradeGameProp } from './game-assets.js';
 
-function ballTexture() {
+// Ball colour options: the two coloured panel sets change; white panels and ink seams stay.
+// `original` keeps the model's own colours instead of a and b.
+export const BALL_SKINS = {
+  classic: { a: '#ffd23f', b: '#2f7fd6', original: true },
+  red: { a: '#ff5a4e', b: '#b3202d' },
+  green: { a: '#5fd66b', b: '#1f8a4c' },
+  black: { a: '#3a3a4c', b: '#14141d' },
+  purple: { a: '#b07cff', b: '#5b2bb5' },
+};
+
+function ballTexture(skin) {
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 128;
   const ctx = c.getContext('2d');
-  const colors = ['#ffd23f', '#ffffff', '#2f7fd6', '#ffd23f', '#ffffff', '#2f7fd6'];
+  const colors = [skin.a, '#ffffff', skin.b, skin.a, '#ffffff', skin.b];
   colors.forEach((col, i) => {
     ctx.fillStyle = col;
     ctx.fillRect((i * 256) / colors.length, 0, 256 / colors.length + 1, 128);
@@ -24,7 +34,7 @@ function ballTexture() {
 export function createBall(scene) {
   const fallback = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_RADIUS, 24, 16),
-    new THREE.MeshToonMaterial({ map: ballTexture(), gradientMap: gradientMap() }),
+    new THREE.MeshToonMaterial({ map: ballTexture(BALL_SKINS.classic), gradientMap: gradientMap() }),
   );
   withOutline(fallback, 0.025);
   const mesh = new THREE.Group();
@@ -32,7 +42,28 @@ export function createBall(scene) {
   visual.add(fallback);
   mesh.add(visual);
   scene.add(mesh);
-  upgradeGameProp(visual, 'ball');
+  // The model's coloured panels: Gold.* (yellow) and Team.* (blue), with their original colours.
+  const panels = [];
+  let skinName = 'classic';
+  function applySkin() {
+    const skin = BALL_SKINS[skinName] ?? BALL_SKINS.classic;
+    fallback.material.map.dispose();
+    fallback.material.map = ballTexture(skin);
+    for (const { material, role, original } of panels) {
+      if (skin.original) material.color.copy(original);
+      else material.color.set(role === 'gold' ? skin.a : skin.b);
+    }
+  }
+  upgradeGameProp(visual, 'ball').then((root) => {
+    root?.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const material of [o.material].flat()) {
+        const role = /^Gold(?:\.|$)/.test(material.name) ? 'gold' : /^Team(?:\.|$)/.test(material.name) ? 'team' : null;
+        if (role && !panels.some((p) => p.material === material)) panels.push({ material, role, original: material.color.clone() });
+      }
+    });
+    applySkin();
+  });
 
   // White rim around the ink outline, shown while the ball is on the far side of the net
   // from the camera, so "over there" reads at a glance.
@@ -99,6 +130,11 @@ export function createBall(scene) {
 
   return {
     mesh,
+    setSkin(name) {
+      if (name === skinName) return;
+      skinName = name;
+      applySkin();
+    },
     impact(strength = 1) { impactAge = 0;impactStrength = THREE.MathUtils.clamp(strength, 0, 1); },
     update(dt, pos, vel, land, landIsMine, farSide = false) {
       t += dt;

@@ -314,7 +314,8 @@ net.on('roster', (m) => {
       state.players.delete(id);
     }
   }
-  state.room = { players: m.players, host: m.host, cpu: m.cpu, teamSize: m.teamSize, rules: m.rules, isPublic: m.isPublic, myId: state.myId };
+  state.room = { players: m.players, host: m.host, cpu: m.cpu, teamSize: m.teamSize, rules: m.rules, ball: m.ball, isPublic: m.isPublic, myId: state.myId };
+  ballView.setSkin(m.ball ?? 'classic');
   refreshRoster();
 });
 net.on('notice', (m) => hud.toast(m.code ? t(`err.${m.code}`) : m.msg));
@@ -587,6 +588,7 @@ hud.on('rules', (d) => {
   net.send({ t: 'rules', rules: d.mode === 'time' ? { mode: 'time', minutes: n } : { mode: 'points', points: n } });
 });
 hud.on('invite', () => hud.copyInvite());
+hud.on('ball', (d) => net.send({ t: 'ball', color: d.color }));
 
 // ---------- Lobby ----------
 // While a join is in flight: spinner on the button you pressed, the other ways in are locked, and a
@@ -1035,6 +1037,25 @@ function updateLobby(dt, t) {
   ballView.update(dt, ballSpot, null, null);
 }
 
+// Warm-up on wide screens: the settings card sits on the left, so slide the picture right (view
+// offset only, the camera itself doesn't move) to keep the court centred in the space that's left.
+const wideScreen = matchMedia('(min-width: 900px)');
+const prematchCard = document.getElementById('prematch');
+let viewShift = 0;
+function updateViewShift(dt) {
+  const show = state.joined && wideScreen.matches && !prematchCard.classList.contains('hidden');
+  const target = show ? (prematchCard.offsetLeft + prematchCard.offsetWidth) / 2 : 0;
+  if (!target && !viewShift) return;
+  viewShift += (target - viewShift) * (1 - Math.exp(-dt * 4));
+  if (!target && viewShift < 0.5) {
+    viewShift = 0;
+    camera.clearViewOffset();
+  } else camera.setViewOffset(innerWidth, innerHeight, -viewShift, 0, innerWidth, innerHeight);
+  // Centred HUD bits (controls bar, hints, meter, banners, idle warning, toasts) follow the court, not the card.
+  hudEl.style.setProperty('--view-shift', `${Math.round(viewShift)}px`);
+}
+const hudEl = document.getElementById('hud');
+
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1045,6 +1066,7 @@ function frame(now) {
   if (!state.joined) sfx.crowdUpdate({ phase: 'menu', dt });
   const gameDt = state.joined ? updateGame(dt, now) : (updateLobby(dt, now / 1000), dt);
   effects.update(gameDt);
+  updateViewShift(dt);
   renderer.render(scene, camera);
 }
 requestAnimationFrame(frame);

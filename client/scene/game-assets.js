@@ -40,6 +40,7 @@ export async function loadGameModel(url, { teamColor, outline = false } = {}) {
         material.emissive.set(0xff5500);
         material.emissiveIntensity = 0.25;
       }
+      material.name = source.name; // lets callers recolour parts by role (e.g. the ball's panels)
       materials.set(source, material);
     }
     return materials.get(source);

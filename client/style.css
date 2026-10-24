@@ -699,7 +699,7 @@ button.loading::after {
 #banner {
   position: absolute;
   top: 34%;
-  left: 50%;
+  left: calc(50% + var(--view-shift, 0px));
   transform: translate(-50%, -50%) scale(0.4) rotate(-6deg);
   opacity: 0;
   text-align: center;
@@ -757,8 +757,8 @@ button.loading::after {
 
 #hint {
   position: absolute;
-  bottom: 66px;
-  left: 50%;
+  bottom: 78px;
+  left: calc(50% + var(--view-shift, 0px));
   transform: translateX(-50%);
   font-size: 22px;
   font-weight: 700;
@@ -776,8 +776,8 @@ button.loading::after {
 
 #controls {
   position: absolute;
-  bottom: 14px;
-  left: 50%;
+  bottom: 26px;
+  left: calc(50% + var(--view-shift, 0px));
   transform: translateX(-50%);
   white-space: nowrap;
   font-size: 14px;
@@ -956,7 +956,7 @@ button.loading::after {
 #toast {
   position: absolute;
   top: 110px;
-  left: 50%;
+  left: calc(50% + var(--view-shift, 0px));
   transform: translate(-50%, -20px);
   padding: 8px 18px;
   background: var(--ink);
@@ -971,16 +971,24 @@ button.loading::after {
 }
 
 /* ---------- Pre-match waiting room ---------- */
+/* ---------- Warm-up card ---------- */
+/* Teams side by side, then match settings as labelled rows, then the actions. Kept compact so the
+   court stays visible while people knock the ball around. */
 #prematch {
   position: absolute;
   left: 50%;
-  bottom: 70px;
+  bottom: 64px;
   transform: translateX(-50%);
-  width: min(620px, 94vw);
-  padding: 14px 18px;
+  width: min(600px, 94vw);
+  max-height: calc(100% - 150px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 18px 16px;
   background: var(--paper);
   border: 5px solid var(--ink);
-  border-radius: 28px;
+  border-radius: 26px;
   box-shadow: 0 8px 0 var(--ink);
   pointer-events: auto;
   animation: popIn 0.4s cubic-bezier(0.3, 1.6, 0.6, 1);
@@ -992,92 +1000,478 @@ button.loading::after {
   }
 }
 .pm-head {
-  text-align: center;
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.pm-ball {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  border: 4px solid var(--ink);
+  background: conic-gradient(var(--sun) 0 60deg, #fff 0 120deg, var(--lagoon) 0 180deg, var(--sun) 0 240deg, #fff 0 300deg, var(--lagoon) 0);
+  animation: spin 4s linear infinite;
 }
 .pm-title {
-  font: 400 30px/1 var(--title);
+  font: 400 26px/1 var(--title);
   color: var(--sun);
   -webkit-text-stroke: 2px var(--ink);
   paint-order: stroke fill;
   text-shadow: 0 3px 0 var(--ink);
 }
 .pm-sub {
-  font-size: 14px;
+  margin-top: 2px;
+  font-size: 12px;
   color: #5b6b8c;
 }
+
+/* Teams: each side is its own tinted card; yours gets a glow in the team colour. */
 .pm-teams {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: stretch;
 }
 .pm-team {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
+  padding: 9px;
+  background: color-mix(in srgb, var(--c, #fff) 12%, #fff);
+  border: 4px solid var(--ink);
+  border-radius: 18px;
+  transition: box-shadow 0.25s, transform 0.25s cubic-bezier(0.3, 1.6, 0.6, 1);
 }
-.pm-vs {
-  font: 400 26px var(--title);
-  color: var(--coral);
-  -webkit-text-stroke: 2px var(--ink);
-  paint-order: stroke fill;
+.pm-team.mine {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c, #fff) 55%, transparent);
 }
 .pm-name {
-  font: 400 22px var(--title);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 5px 9px;
+  font: 400 18px var(--title);
   color: #fff;
   background: var(--c);
-  border: 4px solid var(--ink);
-  border-radius: 14px;
-  text-align: center;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
   -webkit-text-stroke: 1.5px var(--ink);
   paint-order: stroke fill;
 }
+/* Team banner: "TEAM" eyebrow over the name, so it never reads as another player. */
+.pm-tname {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.pm-tname small {
+  font: 700 10px/1.2 Fredoka, system-ui, sans-serif;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  -webkit-text-stroke: 0;
+}
+.pm-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px;
+  font: 700 12px/1.5 Fredoka, system-ui, sans-serif;
+  color: var(--ink);
+  background: #fff;
+  border-radius: 999px;
+  -webkit-text-stroke: 0;
+}
+.pm-vs {
+  align-self: center;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  font: 400 16px var(--title);
+  color: #fff;
+  background: var(--coral);
+  border: 4px solid var(--ink);
+  border-radius: 50%;
+  -webkit-text-stroke: 1px var(--ink);
+  paint-order: stroke fill;
+  transform: rotate(-8deg);
+}
 .pm-slot {
-  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 2px 8px 2px 10px;
+  font-size: 14px;
+  background: #fff;
   border: 3px solid var(--ink);
   border-radius: 12px;
-  background: var(--sky);
 }
 .pm-slot.me {
   background: #fff4c2;
 }
 .pm-slot.empty {
-  border-style: dashed;
+  justify-content: center;
+  gap: 4px;
   color: #8a96b0;
   background: transparent;
+  border-style: dashed;
+  border-color: #9aa7bf;
+}
+.pm-count .ico,
+.crown .ico,
+.pm-you .ico,
+.pm-slot.empty .ico {
+  width: 14px;
+  height: 14px;
+}
+.pm-pname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pm-slot > .ping,
+.pm-slot > small {
+  margin-left: auto;
 }
 .pm-slot small {
   font-size: 11px;
   color: #8a96b0;
 }
+.pm-tag {
+  padding: 0 6px;
+  font: 700 10px/1.6 Fredoka, system-ui, sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--ink);
+  border-radius: 999px;
+}
 .crown {
-  color: #e0a800;
+  display: inline-flex;
+  color: #f2b632;
+}
+.crown .ico {
+  stroke: var(--ink);
+  stroke-width: 1.6;
 }
 .pm-you {
+  padding: 5px 0;
   text-align: center;
+  font-size: 13px;
+  color: #3d5a80;
+}
+.pm-you {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.pm-you .ico {
+  color: #2a9d4b;
+  stroke-width: 3;
+}
+.pm-team button.pm-join {
+  gap: 6px;
+  padding: 5px 10px;
   font-size: 14px;
+}
+.pm-join .ico {
+  transition: transform 0.2s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+.pm-join:hover:not(:disabled) .ico {
+  transform: translateX(3px);
+}
+
+/* Settings: label on the left, control on the right. */
+#prematch .sec-label {
+  margin-top: 2px;
+}
+.pm-rules {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px 16px;
+  align-items: center;
+}
+.pm-label {
+  font-size: 13px;
   color: #5b6b8c;
-  padding: 8px 0;
 }
-.pm-team button {
-  font-size: 15px;
-  padding: 7px 10px;
+.pm-ctrl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
+.pm-ctrl small {
+  font-size: 12px;
+  color: #8a96b0;
+}
+.pm-rules .seg {
+  border-width: 3px;
+}
+.pm-rules .seg button,
+.pm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.pm-rules .seg .ico,
+.pm-chip .ico {
+  width: 15px;
+  height: 15px;
+}
+.pm-rules .seg button {
+  padding: 4px 10px;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.pm-rules .seg button + button {
+  border-left-width: 3px;
+}
+.pm-rules .seg button:not(.on):hover {
+  background: #fff8d6;
+}
+.pm-or {
+  font-size: 12px;
+  color: #7a8aa8;
+}
+.pm-chip {
+  padding: 2px 12px;
+  font-size: 14px;
+  background: var(--sky);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+}
+/* CPU fill: a real on/off switch instead of a button that says ON/OFF. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px 3px 4px;
+  font-size: 13px;
+  border-width: 3px;
+  box-shadow: 0 3px 0 var(--ink);
+}
+.switch i {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  background: #d5dbe6;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+}
+.switch i::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+.switch.on i {
+  background: #3ccf6a;
+}
+.switch.on i::after {
+  left: 17px;
+}
+.switch:hover {
+  transform: translateY(-1px);
+}
+
+/* Ball colour: little balls painted like the real one; the chosen one gets a ring and a bounce. */
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-width: 3px;
+  box-shadow: 0 3px 0 var(--ink);
+  background: conic-gradient(var(--a) 0 60deg, #fff 0 120deg, var(--b) 0 180deg, var(--a) 0 240deg, #fff 0 300deg, var(--b) 0);
+  transition: transform 0.2s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+.swatch:hover {
+  transform: translateY(-2px) rotate(25deg);
+}
+.swatch.on {
+  outline: 3px solid var(--lagoon);
+  outline-offset: 2px;
+  animation: swatchPick 0.35s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+/* Guests just see the room's ball inside the chip. */
+.pm-chip .swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: none;
+}
+@keyframes swatchPick {
+  50% {
+    transform: scale(1.18) rotate(-20deg);
+  }
+}
+
+/* Actions: invite on the side, Start as the big obvious one. */
 .pm-actions {
   display: flex;
-  gap: 10px;
-  justify-content: center;
+  flex-wrap: wrap;
   align-items: center;
-  margin-top: 12px;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 3px dashed #d5e3f2;
 }
-.pm-actions .toggle.on b {
-  color: #2a9d4b;
+.pm-actions > button {
+  padding: 8px 14px;
+  font-size: 16px;
+}
+.pm-actions > button.pm-start {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  font: 400 20px var(--title);
+  letter-spacing: 0.5px;
+}
+.pm-start:not(:disabled)::before {
+  content: '';
+  position: absolute;
+  inset: -20% auto -20% -40%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  transform: skewX(-20deg);
+  animation: startShine 3s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes startShine {
+  0%,
+  65% {
+    left: -40%;
+  }
+  100% {
+    left: 120%;
+  }
+}
+.pm-start .ico {
+  transition: transform 0.2s cubic-bezier(0.3, 1.8, 0.6, 1);
+}
+.pm-start:hover:not(:disabled) .ico {
+  transform: scale(1.25);
+}
+.pm-hint {
+  flex-basis: 100%;
+  margin-top: -4px;
+  text-align: center;
+  font-size: 12px;
+  color: #c0504a;
 }
 .pm-wait {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
   color: #5b6b8c;
-  animation: pulse 1.2s ease-in-out infinite;
 }
+.pm-dot {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  background: conic-gradient(var(--sun) 0 120deg, #fff 0 240deg, var(--lagoon) 0);
+  animation: spin 1s linear infinite;
+}
+/* Wide screens: the card docks on the left like the title card, and the game view slides right
+   (see updateViewShift in main.js). */
+@media (min-width: 900px) {
+  #prematch {
+    left: max(24px, 4vw);
+    top: 84px;
+    bottom: 32px;
+    transform: none;
+    width: min(500px, 42vw);
+    max-height: none;
+    gap: 18px;
+    padding: 20px 22px;
+    animation: pmDock 0.45s cubic-bezier(0.3, 1.5, 0.6, 1);
+  }
+  .pm-head {
+    justify-content: flex-start;
+  }
+  /* Full-height panel: the buttons sit at the bottom, the extra room goes above them. */
+  .pm-actions {
+    margin-top: auto;
+  }
+  .pm-title {
+    font-size: 30px;
+  }
+  .pm-sub {
+    font-size: 13px;
+  }
+  .pm-name {
+    font-size: 20px;
+  }
+  .pm-slot {
+    min-height: 34px;
+    font-size: 15px;
+  }
+  .pm-rules .seg button {
+    padding: 5px 12px;
+    font-size: 14px;
+  }
+  .pm-actions > button.pm-start {
+    font-size: 22px;
+  }
+}
+@keyframes pmDock {
+  from {
+    transform: translateX(-40px);
+    opacity: 0;
+  }
+}
+@media (max-width: 520px) {
+  .pm-sub {
+    display: none;
+  }
+  .pm-rules {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .pm-label:not(:first-child) {
+    margin-top: 4px;
+  }
+}
+@media (max-height: 600px) {
+  .pm-sub,
+  #prematch .sec-label {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pm-ball,
+  .pm-dot,
+  .swatch.on,
+  .pm-start:not(:disabled)::before {
+    animation: none;
+  }
+}
+
 button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -1165,57 +1559,11 @@ button:disabled {
   box-shadow: 0 1px 0 var(--ink);
 }
 
-/* Compact warm-up card: keep the court visible while people knock the ball around. */
-#prematch {
-  bottom: 64px;
-  width: min(540px, 94vw);
-  padding: 10px 14px;
-  border-radius: 24px;
-}
-.pm-head {
-  margin-bottom: 6px;
-}
-.pm-title {
-  font-size: 24px;
-}
-.pm-sub {
-  font-size: 12px;
-}
-.pm-team {
-  gap: 4px;
-}
-.pm-name {
-  font-size: 18px;
-  border-width: 3px;
-}
-.pm-slot {
-  padding: 2px 10px;
-  font-size: 14px;
-}
-.pm-you {
-  padding: 4px 0;
-  font-size: 12px;
-}
-.pm-team button {
-  padding: 4px 10px;
-  font-size: 14px;
-}
-.pm-actions {
-  margin-top: 8px;
-}
-.pm-actions button {
-  padding: 6px 14px;
-  font-size: 15px;
-}
-.pm-actions button.primary {
-  font-size: 19px;
-}
-
 /* ---------- Serve power meter ---------- */
 /* Zone widths mirror SERVE in shared/constants.js: short 0–30, good 30–70, perfect 70–82, good 82–85, long 85–100 */
 #meter {
   position: absolute;
-  left: 50%;
+  left: calc(50% + var(--view-shift, 0px));
   bottom: 74px;
   width: min(460px, 86vw);
   transform: translate(-50%, 30px) scale(0.8);
@@ -1851,11 +2199,6 @@ body.tutorial #touches {
 .ping.bad i:nth-child(1) {
   background: var(--coral);
 }
-.pm-slot {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 
 /* ---------- Language switch on the title card ---------- */
 .panel {
@@ -1884,21 +2227,25 @@ body.tutorial #touches {
   letter-spacing: 2px;
 }
 
+/* Idle warning: just under the scoreboard, centred on the visible court (shifted during warm-up). */
 #afk {
   position: absolute;
-  top: 130px;
-  left: 50%;
+  top: 100px;
+  left: calc(50% + var(--view-shift, 0px));
   transform: translateX(-50%);
-  padding: 10px 20px;
+  width: max-content;
+  max-width: min(480px, 88vw);
+  padding: 10px 22px;
+  text-align: center;
+  line-height: 1.2;
   background: var(--coral);
   color: #fff;
   font: 400 20px var(--title);
   -webkit-text-stroke: 1px var(--ink);
   paint-order: stroke fill;
   border: 4px solid var(--ink);
-  border-radius: 999px;
+  border-radius: 24px;
   box-shadow: 0 5px 0 var(--ink);
-  white-space: nowrap;
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -1936,26 +2283,6 @@ body.tutorial #touches {
     transform: scale(1.15);
   }
 }
-.pm-rules {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  font-size: 14px;
-}
-.pm-rules .seg {
-  border-width: 3px;
-}
-.pm-rules .seg button {
-  padding: 3px 9px;
-  font-size: 13px;
-}
-.pm-rules .seg button + button {
-  border-left-width: 3px;
-}
-
 /* Turnstile only shows itself if Cloudflare needs a click; otherwise it takes no space. */
 #turnstile {
   display: flex;

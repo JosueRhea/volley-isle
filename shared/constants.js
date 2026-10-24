@@ -32,6 +32,7 @@ export const HIT_COOLDOWN = 0.4;
 export const MAX_TOUCHES = 3;
 export const TEAM_SIZE = 2;
 export const WIN_SCORE = 11;
+export const BALL_COLORS = ['classic', 'red', 'green', 'black', 'purple']; // the host picks one for the whole room
 
 // Slow-motion: everyone in the room slows down together for a beat after a spike,
 // and again when a spike lands for the point. Durations are in real seconds.

@@ -101,6 +101,9 @@ export function attach(ws, room, { onJoin, onLeave, rejoinTicket } = {}) {
       case 'rules':
         if (player) room.setRules(player, m.rules), room.markActive(player);
         break;
+      case 'ball':
+        if (player) room.setBallColor(player, m.color), room.markActive(player);
+        break;
       case 'start':
         if (player) room.startMatch(player), room.markActive(player);
         break;
