@@ -8,6 +8,7 @@ export const DEFAULTS = {
   musicOn: true,
   sfxOn: true,
   prompts: true, // floating button prompts
+  simpleHud: false, // in a match, show only the scoreboard, event feed/callouts and the menu button
   quality: 'high', // 'high' | 'medium' | 'low'
   lang: navigator.language?.toLowerCase().startsWith('es') ? 'es' : 'en', // 'en' | 'es'
 };
