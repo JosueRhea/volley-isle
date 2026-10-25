@@ -34,8 +34,8 @@ function pingBadge(p, pings) {
 function voiceBadge(p, voice, myId) {
   const state = voice?.badge(p);
   if (!state) return '';
-  const icon = state === 'muted' ? 'i-mute' : 'i-speaker';
-  const label = p.id === myId ? t('voice.you') : t(state === 'muted' ? 'voice.unmute' : 'voice.mute', { name: p.name });
+  const icon = { muted: 'i-mute', bad: 'i-warn' }[state] ?? 'i-speaker';
+  const label = p.id === myId ? t('voice.you') : state === 'bad' ? t('vp.a.failed', { name: p.name, more: '' }) : t(state === 'muted' ? 'voice.unmute' : 'voice.mute', { name: p.name });
   const attrs = p.id === myId ? 'tabindex="-1"' : `data-cmd="mute" data-id="${p.id}"`;
   return `<button class="vc ${state}" ${attrs} title="${esc(label)}" aria-label="${esc(label)}"><svg class="ico"><use href="#${icon}" /></svg></button>`;
 }
@@ -224,22 +224,6 @@ export class Hud {
             (ready ? '' : `<div class="pm-hint">${t('pm.need')}</div>`)
         : `${invite}<div class="pm-wait"><span class="pm-dot"></span>${t('pm.wait')}</div>`,
     );
-  }
-
-  // The mic button: off | asking | denied | open | ptt | talking, glowing while your voice is picked up.
-  micButton(show, state, talking) {
-    const el = $('voice-btn');
-    el.classList.toggle('hidden', !show);
-    if (!show) return;
-    const key = `${state}|${talking}`;
-    if (this.cache.voiceBtn === key) return;
-    this.cache.voiceBtn = key;
-    el.dataset.state = state;
-    el.classList.toggle('talking', talking);
-    const on = state === 'open' || state === 'ptt' || state === 'talking';
-    el.querySelector('use').setAttribute('href', on ? '#i-mic' : '#i-mic-off');
-    el.title = t(`voice.btn.${state}`);
-    el.setAttribute('aria-label', el.title);
   }
 
   // Match clock in the scoreboard: countdown in timed matches, the target in points matches.

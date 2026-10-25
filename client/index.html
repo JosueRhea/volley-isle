@@ -43,6 +43,8 @@
       <symbol id="i-sfx" viewBox="0 0 24 24"><path fill="currentColor" d="m11 3 2 5.6L18.6 10.6 13 12.6 11 18.2 9 12.6 3.4 10.6 9 8.6z" /><path d="M19 15.5v5" /><path d="M16.5 18h5" /></symbol>
       <symbol id="i-mic" viewBox="0 0 24 24"><rect fill="currentColor" x="8.5" y="2.5" width="7" height="12" rx="3.5" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3.5" /></symbol>
       <symbol id="i-mic-off" viewBox="0 0 24 24"><rect fill="currentColor" x="8.5" y="2.5" width="7" height="12" rx="3.5" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3.5" /><path d="m3.5 3.5 17 17" /></symbol>
+      <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9" /><path d="M20 4v5h-5" /></symbol>
+      <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z" /><path d="M12 10v4.5" /><path d="M12 17.5h.01" /></symbol>
       <symbol id="i-speaker" viewBox="0 0 24 24"><path fill="currentColor" d="M11 4.5 6 8.5H3v7h3l5 4z" /><path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6" /></symbol>
     </svg>
     <div id="app"></div>
@@ -61,6 +63,41 @@
         <button class="snd-more" data-open="settings"><svg class="ico"><use href="#i-gear" /></svg><span data-i18n="hud.moreSettings"></span></button>
       </div>
       <button id="sound-btn" data-i18n-title="hud.sound" data-i18n-label="hud.sound" aria-expanded="false"><svg class="ico"><use href="#i-sound" /></svg></button>
+    </div>
+    <!-- Voice chat dock (in a room): mic button, the voice panel, and an alert when something needs fixing. -->
+    <div id="voice" class="hidden">
+      <div id="voice-panel" class="hidden" role="dialog" data-i18n-label="set.voice">
+        <div class="snd-title">
+          <svg class="ico"><use href="#i-mic" /></svg><span data-i18n="set.voice"></span>
+          <input id="vp-on" type="checkbox" data-i18n-label="set.voiceOn" />
+        </div>
+        <div id="vp-status" class="vp-status" aria-live="polite"></div>
+        <div id="vp-body">
+          <div class="snd-row">
+            <div class="snd-head"><svg class="ico"><use href="#i-mic" /></svg><span data-i18n="vp.mic"></span><span id="vp-mic-state" class="vp-tag"></span></div>
+            <select id="vp-mic-device" data-i18n-label="vp.mic"></select>
+            <div class="vp-meter" data-i18n-title="vp.level"><i id="vp-meter-fill"></i></div>
+            <div class="vp-mic-actions">
+              <div class="seg" id="vp-mode"><button data-value="open" data-i18n="set.micOpen"></button><button data-value="ptt" data-i18n="vp.ptt"></button></div>
+              <button id="vp-mic-toggle" class="vp-small"></button>
+            </div>
+          </div>
+          <div class="snd-row">
+            <label class="snd-head" for="vp-vol"><svg class="ico"><use href="#i-sound" /></svg><span data-i18n="set.voiceVol"></span></label>
+            <input id="vp-vol" type="range" min="0" max="1" step="0.05" data-i18n-label="set.voiceVol" />
+            <select id="vp-out" data-i18n-label="vp.speaker"></select>
+          </div>
+          <div class="snd-row" id="vp-people"></div>
+          <button id="vp-reconnect" class="snd-more"><svg class="ico"><use href="#i-retry" /></svg><span data-i18n="vp.reconnectAll"></span></button>
+        </div>
+      </div>
+      <div class="vp-dock">
+        <button id="voice-alert" class="hidden"></button>
+        <div class="vp-mic">
+          <button id="voice-btn" data-state="off"><svg class="ico"><use href="#i-mic-off" /></svg><span class="ptt-key">V</span></button>
+          <button id="voice-more" aria-expanded="false" data-i18n-title="vp.open" data-i18n-label="vp.open"><svg class="ico"><use href="#i-gear" /></svg></button>
+        </div>
+      </div>
     </div>
     <div id="cinema"><div class="bar top"></div><div class="bar bottom"></div></div>
     <div id="hud" class="hidden">
@@ -99,7 +136,6 @@
       </div>
       <div id="floats"></div>
       <div id="toast"></div>
-      <button id="voice-btn" class="hidden" data-state="off"><svg class="ico"><use href="#i-mic-off" /></svg><span class="ptt-key">V</span></button>
       <div id="afk" class="hidden"></div>
       <div id="tutorial" class="hidden">
         <div class="tut-head">

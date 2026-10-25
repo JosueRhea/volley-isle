@@ -52,3 +52,17 @@ test('bad signaling is ignored', () => {
   a.say({ t: 'team', team: 1 - team, pad: 'x'.repeat(3000) });
   assert.equal(a.p.team, team);
 });
+
+test('mic flag and restart requests', () => {
+  const room = new Room('TALK', false), a = join(room), b = join(room);
+  const me = () => (room.flush(), a.ws.sent.findLast((m) => m.t === 'roster').players.find((p) => p.id === a.p.id));
+  a.say({ t: 'voice', on: true, mic: false });
+  assert.deepEqual([me().vc, me().mc], [1, 0]);
+  a.say({ t: 'voice', on: true, mic: true });
+  assert.deepEqual([me().vc, me().mc], [1, 1]);
+  a.say({ t: 'voice', on: false, mic: true });
+  assert.deepEqual([me().vc, me().mc], [0, 0], 'no mic flag outside voice');
+  a.say({ t: 'voice', on: true });
+  a.say({ t: 'rtc', to: b.p.id, d: { type: 'restart', sdp: 'x'.repeat(50), junk: 1 } });
+  assert.deepEqual(b.ws.sent.findLast((m) => m.t === 'rtc'), { t: 'rtc', from: a.p.id, d: { type: 'restart' } });
+});

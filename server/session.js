@@ -115,7 +115,7 @@ export function attach(ws, room, { onJoin, onLeave, rejoinTicket } = {}) {
         if (player) room.drill(player, String(m.kind)), room.markActive(player);
         break;
       case 'voice': // joined or left voice chat
-        if (player) room.setVoice(player, m.on);
+        if (player) room.setVoice(player, m.on, m.mic);
         break;
       case 'rtc': // voice chat signaling, passed straight to one other player in the room
         if (player) room.relayRtc(player, m.to, m.d);

@@ -808,18 +808,23 @@ export class Room {
   // Voice is peer-to-peer (WebRTC); the room only says who's in voice and passes along the
   // offers/answers that set each connection up. Audio never goes through the server.
 
-  setVoice(p, on) {
+  // on: in voice chat; mic: their microphone is on (otherwise they're just listening).
+  setVoice(p, on, mic) {
     const voice = !!on;
-    if (p.bot || p.voice === voice) return;
+    const voiceMic = voice && !!mic;
+    if (p.bot || (p.voice === voice && p.voiceMic === voiceMic)) return;
     p.voice = voice;
+    p.voiceMic = voiceMic;
     this.rosterDirty = true;
   }
 
+  // offer/answer set a connection up; restart asks the other side to set it up again.
   relayRtc(p, to, d) {
-    if (!d || (d.type !== 'offer' && d.type !== 'answer') || typeof d.sdp !== 'string' || d.sdp.length > 10000) return;
+    if (d?.type === 'restart') d = { type: 'restart' };
+    else if (!d || (d.type !== 'offer' && d.type !== 'answer') || typeof d.sdp !== 'string' || d.sdp.length > 10000) return;
     const q = this.players.find((x) => x.id === to && !x.bot);
     if (!q || q === p || !p.voice) return;
-    this.send(q, { t: 'rtc', from: p.id, d: { type: d.type, sdp: d.sdp } });
+    this.send(q, { t: 'rtc', from: p.id, d: d.type === 'restart' ? d : { type: d.type, sdp: d.sdp } });
   }
 
   // ----- Networking -----
@@ -849,7 +854,7 @@ export class Room {
         ball: this.ballColor,
         isPublic: this.isPublic,
         teamSize: this.teamSize,
-        players: this.players.map(({ id, name, team, slot, bot, look, heldUntil, voice }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0, vc: voice ? 1 : 0 })),
+        players: this.players.map(({ id, name, team, slot, bot, look, heldUntil, voice, voiceMic }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0, vc: voice ? 1 : 0, mc: voiceMic ? 1 : 0 })),
       }));
     }
     const b = this.ball;

@@ -11,6 +11,8 @@ export const DEFAULTS = {
   voiceVol: 1,
   micMode: 'open', // 'open' | 'ptt' (push-to-talk: hold V)
   micOn: false, // turned the mic on last time: ask for it again on the next join
+  micDevice: '', // chosen microphone ('' = the system default)
+  voiceOut: '', // chosen speaker for voices ('' = the system default; only where the browser allows it)
   prompts: true, // floating button prompts
   simpleHud: false, // in a match, show only the scoreboard, event feed/callouts and the menu button
   quality: 'high', // 'high' | 'medium' | 'low'

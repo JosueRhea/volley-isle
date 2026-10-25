@@ -7,6 +7,7 @@ import { Effects } from './scene/effects.js';
 import { Input } from './input.js';
 import { Net } from './net.js';
 import { Voice } from './voice.js';
+import { setupVoicePanel } from './voice-panel.js';
 import { Hud } from './hud.js';
 import { sfx, music, setVolumes } from './audio.js';
 import { settings, onSettings, setSetting } from './settings.js';
@@ -60,7 +61,8 @@ function applyQuality(q) {
 const input = new Input(renderer.domElement);
 const hud = new Hud();
 const net = new Net();
-const voice = new Voice(net, { onChange: () => refreshRoster(), toast: (key) => hud.toast(t(key)) });
+const voice = new Voice(net, { onChange: () => refreshRoster() });
+const voicePanel = setupVoicePanel(voice);
 setupTouch(input);
 
 const soundBtn = document.getElementById('sound-btn');
@@ -634,22 +636,6 @@ hud.on('cpu', () => net.send({ t: 'cpu', on: !state.room?.cpu }));
 hud.on('start', () => net.send({ t: 'start' }));
 hud.on('mute', (d) => voice.toggleMute(Number(d.id)));
 
-// Mic button: tap to turn the mic on/off; in push-to-talk mode, hold it to talk.
-const voiceBtn = document.getElementById('voice-btn');
-let voiceHeld = false;
-voiceBtn.addEventListener('pointerdown', (e) => {
-  if (settings.micMode !== 'ptt' || !voice.mic) return;
-  voiceBtn.setPointerCapture(e.pointerId);
-  voiceHeld = true;
-  voice.hold(+1);
-});
-const releaseVoice = () => voiceHeld && ((voiceHeld = false), voice.hold(-1));
-voiceBtn.addEventListener('pointerup', releaseVoice);
-voiceBtn.addEventListener('pointercancel', releaseVoice);
-voiceBtn.addEventListener('click', () => {
-  voiceBtn.blur(); // keep Space/Enter for the game
-  voice.toggleMic();
-});
 hud.on('rules', (d) => {
   const n = Number(d.n);
   net.send({ t: 'rules', rules: d.mode === 'time' ? { mode: 'time', minutes: n } : { mode: 'points', points: n } });
@@ -1022,7 +1008,7 @@ function updateGame(realDt, now) {
   hud.clock(state.clock, state.suddenDeath, state.room?.rules, state.phase !== 'lobby' && !tutorial);
   hud.prematch(state.phase === 'lobby' && !tutorial, state.room && { ...state.room, myId: state.myId, pings: currentPings(), voice });
   voice.update();
-  hud.micButton(voice.active, voice.micState, voice.speaking.has(state.myId));
+  voicePanel.update();
   tutorial?.update(realDt);
   hud.controls(input.device);
   const prompt = contextPrompt(serving, bs, forward);
