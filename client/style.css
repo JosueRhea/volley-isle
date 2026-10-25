@@ -2383,3 +2383,120 @@ body.tutorial #touches {
     animation: none;
   }
 }
+
+/* ---------- Voice chat ---------- */
+#voice-btn {
+  position: fixed;
+  right: 76px;
+  bottom: 14px;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  background: #d9dde8;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+#voice-btn .ico {
+  width: 28px;
+  height: 28px;
+}
+#voice-btn .ptt-key {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: none;
+  min-width: 22px;
+  padding: 1px 5px;
+  font-size: 12px;
+  line-height: 16px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+}
+body.touch #voice-btn {
+  top: 74px;
+  bottom: auto;
+}
+body.touch #voice-btn .ptt-key,
+body.tutorial #voice-btn {
+  display: none;
+}
+#voice-btn[data-state='open'] {
+  background: var(--sun);
+}
+#voice-btn[data-state='ptt'] {
+  background: var(--paper);
+}
+#voice-btn[data-state='ptt'] .ptt-key {
+  display: block;
+}
+body.touch #voice-btn[data-state='ptt'] .ptt-key {
+  display: none;
+}
+#voice-btn[data-state='talking'],
+#voice-btn.talking {
+  background: var(--lagoon);
+  color: #fff;
+  box-shadow: 0 5px 0 var(--ink), 0 0 0 6px rgba(47, 155, 255, 0.35);
+}
+#voice-btn[data-state='asking'] {
+  opacity: 0.6;
+}
+#voice-btn[data-state='denied'] {
+  background: #ffd0d0;
+}
+
+/* Speaker badge next to a name: in voice / talking / muted by you. Click to mute. */
+#hud .vc {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: none;
+  color: #8a96b0;
+  vertical-align: middle;
+  transform: none;
+}
+#hud .vc .ico {
+  width: 16px;
+  height: 16px;
+}
+#hud .vc .wave {
+  opacity: 0;
+}
+#hud .vc.talk {
+  color: #fff;
+  background: var(--lagoon);
+  animation: vcPulse 0.9s ease-in-out infinite;
+}
+@keyframes vcPulse {
+  50% {
+    transform: scale(1.15);
+  }
+}
+#hud .vc.talk .wave {
+  opacity: 1;
+}
+#hud .vc.muted {
+  color: var(--coral);
+}
+/* Lobby slots are narrow: only show the speaker while someone talks (or is muted), and never squeeze names to a letter. */
+.pm-slot .vc {
+  flex: none;
+}
+.pm-slot .vc.on {
+  display: none;
+}
+.pm-pname {
+  min-width: 3.2em;
+}

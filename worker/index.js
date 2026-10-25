@@ -2,6 +2,7 @@
 //   /api/config     → public client config (Turnstile site key)
 //   /api/join       → origin + rate limit + Turnstile check, then a room code and a signed join ticket
 //                     (quick: the Matchmaker picks a public room with space; create/tutorial: a fresh code)
+//   /api/ice        → STUN/TURN servers for voice chat (TURN only when a Cloudflare TURN key is set)
 //   /ws/<CODE>      → that room's RoomObject, only with a valid ticket (one Durable Object per room)
 //   everything else → static assets from dist/
 import { DurableObject } from 'cloudflare:workers';
@@ -9,6 +10,7 @@ import { Room } from '../server/room.js';
 import { attach, admit, rejectSocket, roomOptions, MAX_HUMANS, EMPTY_ROOM_S } from '../server/session.js';
 import { newCode, CODE_RE } from '../server/codes.js';
 import { originAllowed, verifyTurnstile, signTicket, verifyTicket, listFrom, JOIN_MODES, REJOIN_TTL_MS, rejoinMode, baseMode } from '../server/gate.js';
+import { iceServers } from '../server/ice.js';
 import { TICK_HZ, SNAPSHOT_HZ } from '../shared/constants.js';
 
 const json = (body, status = 200) =>
@@ -26,12 +28,14 @@ export default {
     // Public config the client needs (the Turnstile site key is public by design).
     if (url.pathname === '/api/config') return json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY ?? null });
 
-    if (url.pathname === '/api/join' || url.pathname.startsWith('/ws/')) {
+    if (url.pathname === '/api/join' || url.pathname === '/api/ice' || url.pathname.startsWith('/ws/')) {
       // 1. Only the game's own pages.
       if (!originAllowed(request.headers.get('Origin'), allowedOrigins(env))) return json({ error: 'origin' }, 403);
       // 2. Per-IP rate limit on everything that creates or joins rooms.
       if (env.JOIN_LIMITER && !(await env.JOIN_LIMITER.limit({ key: ip })).success) return json({ error: 'rateLimited' }, 429);
     }
+
+    if (url.pathname === '/api/ice') return json({ iceServers: await iceServers(env.TURN_KEY_ID, env.TURN_KEY_API_TOKEN) });
 
     // Prove you're human (Turnstile), get a room code + a signed ticket for it.
     if (url.pathname === '/api/join') {

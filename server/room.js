@@ -804,6 +804,24 @@ export class Room {
     }
   }
 
+  // ----- Voice chat -----
+  // Voice is peer-to-peer (WebRTC); the room only says who's in voice and passes along the
+  // offers/answers that set each connection up. Audio never goes through the server.
+
+  setVoice(p, on) {
+    const voice = !!on;
+    if (p.bot || p.voice === voice) return;
+    p.voice = voice;
+    this.rosterDirty = true;
+  }
+
+  relayRtc(p, to, d) {
+    if (!d || (d.type !== 'offer' && d.type !== 'answer') || typeof d.sdp !== 'string' || d.sdp.length > 10000) return;
+    const q = this.players.find((x) => x.id === to && !x.bot);
+    if (!q || q === p || !p.voice) return;
+    this.send(q, { t: 'rtc', from: p.id, d: { type: d.type, sdp: d.sdp } });
+  }
+
   // ----- Networking -----
 
   send(p, msg) {
@@ -831,7 +849,7 @@ export class Room {
         ball: this.ballColor,
         isPublic: this.isPublic,
         teamSize: this.teamSize,
-        players: this.players.map(({ id, name, team, slot, bot, look, heldUntil }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0 })),
+        players: this.players.map(({ id, name, team, slot, bot, look, heldUntil, voice }) => ({ id, name, team, slot, bot, look, off: heldUntil ? 1 : 0, vc: voice ? 1 : 0 })),
       }));
     }
     const b = this.ball;

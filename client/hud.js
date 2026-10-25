@@ -30,6 +30,16 @@ function pingBadge(p, pings) {
   return ` <span class="ping ${q}" title="${t('hud.ping')}"><i></i><i></i><i></i>${ms}ms</span>`;
 }
 
+// Voice chat badge: shows who's in voice, lights up while they talk; click it to mute them.
+function voiceBadge(p, voice, myId) {
+  const state = voice?.badge(p);
+  if (!state) return '';
+  const icon = state === 'muted' ? 'i-mute' : 'i-speaker';
+  const label = p.id === myId ? t('voice.you') : t(state === 'muted' ? 'voice.unmute' : 'voice.mute', { name: p.name });
+  const attrs = p.id === myId ? 'tabindex="-1"' : `data-cmd="mute" data-id="${p.id}"`;
+  return `<button class="vc ${state}" ${attrs} title="${esc(label)}" aria-label="${esc(label)}"><svg class="ico"><use href="#${icon}" /></svg></button>`;
+}
+
 export class Hud {
   constructor() {
     this.cache = {};
@@ -40,10 +50,12 @@ export class Hud {
       $('code').value = room.toUpperCase();
       $('btn-join').classList.add('primary');
     }
-    $('prematch').addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-cmd]');
-      if (btn && !btn.disabled) this.handlers[btn.dataset.cmd]?.(btn.dataset);
-    });
+    for (const id of ['prematch', 'roster']) {
+      $(id).addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cmd]');
+        if (btn && !btn.disabled) this.handlers[btn.dataset.cmd]?.(btn.dataset);
+      });
+    }
   }
 
   on(cmd, fn) {
@@ -110,13 +122,13 @@ export class Hud {
   }
 
   // pings: Map of player id → round-trip ms. Shown as signal bars + ms next to each name.
-  roster(players, myId, pings = new Map()) {
+  roster(players, myId, pings = new Map(), voice = null) {
     const pingTag = (p) => pingBadge(p, pings);
     const html = [0, 1]
       .map((team) => {
         const rows = players
           .filter((p) => p.team === team)
-          .map((p) => `<div class="${p.id === myId ? 'me' : ''}"><span class="pname">${esc(p.name)}</span>${pingTag(p)}</div>`)
+          .map((p) => `<div class="${p.id === myId ? 'me' : ''}"><span class="pname">${esc(p.name)}</span>${voiceBadge(p, voice, myId)}${pingTag(p)}</div>`)
           .join('');
         return `<div class="side" style="--c:${TEAM_COLORS[team].css}"><b>${teamName(team)}</b>${rows}</div>`;
       })
@@ -141,7 +153,7 @@ export class Hud {
           const crown = p.id === r.host ? `<span class="crown" title="${t('hud.host')}">${ico('crown')}</span>` : '';
           const you = p.id === r.myId ? `<span class="pm-tag">${t('pm.youTag')}</span>` : '';
           rows.push(
-            `<div class="pm-slot ${you ? 'me' : ''}"><span class="pm-pname">${esc(p.name)}</span>${crown}${you}${pingBadge(p, r.pings)}</div>`,
+            `<div class="pm-slot ${you ? 'me' : ''}"><span class="pm-pname">${esc(p.name)}</span>${crown}${you}${voiceBadge(p, r.voice, r.myId)}${pingBadge(p, r.pings)}</div>`,
           );
         }
       }
@@ -212,6 +224,22 @@ export class Hud {
             (ready ? '' : `<div class="pm-hint">${t('pm.need')}</div>`)
         : `${invite}<div class="pm-wait"><span class="pm-dot"></span>${t('pm.wait')}</div>`,
     );
+  }
+
+  // The mic button: off | asking | denied | open | ptt | talking, glowing while your voice is picked up.
+  micButton(show, state, talking) {
+    const el = $('voice-btn');
+    el.classList.toggle('hidden', !show);
+    if (!show) return;
+    const key = `${state}|${talking}`;
+    if (this.cache.voiceBtn === key) return;
+    this.cache.voiceBtn = key;
+    el.dataset.state = state;
+    el.classList.toggle('talking', talking);
+    const on = state === 'open' || state === 'ptt' || state === 'talking';
+    el.querySelector('use').setAttribute('href', on ? '#i-mic' : '#i-mic-off');
+    el.title = t(`voice.btn.${state}`);
+    el.setAttribute('aria-label', el.title);
   }
 
   // Match clock in the scoreboard: countdown in timed matches, the target in points matches.

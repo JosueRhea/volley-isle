@@ -132,6 +132,8 @@ npm run deploy     # build + deploy to Cloudflare (wrangler deploy)
 
 **Secrets:** the Worker needs `TURNSTILE_SECRET` and `TICKET_SECRET`, set with `wrangler secret put` and never committed. For `npm run cf:dev`, the git-ignored `.dev.vars` provides Cloudflare's Turnstile test keys, the localhost hostnames and origins, and a local ticket key. The plain Node host (`npm run dev`) runs without Turnstile unless `TURNSTILE_SECRET` is set; origin checks and join tickets are always on.
 
+**Voice chat (optional TURN):** voice is peer-to-peer WebRTC; the server only relays the connection setup. Public STUN servers connect most players directly. For players behind strict NATs (common on mobile networks), create a Cloudflare Realtime TURN key and set `TURN_KEY_ID` and `TURN_KEY_API_TOKEN` (`wrangler secret put`, or env vars for the Node host). With TURN set, public Quick Play rooms send voice through the relay so strangers never see each other's IP address.
+
 How it fits together (`worker/index.js`, `wrangler.jsonc`):
 - **Worker:** serves the built client from `dist/` and routes the API.
 - **`RoomObject` Durable Object:** one per room, addressed by its 4-letter code. The room is created near its first player. It holds the match in memory, runs the 60 Hz simulation while anyone is connected, and shuts down when the last player leaves.

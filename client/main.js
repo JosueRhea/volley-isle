@@ -6,6 +6,7 @@ import { createBall } from './scene/ball.js';
 import { Effects } from './scene/effects.js';
 import { Input } from './input.js';
 import { Net } from './net.js';
+import { Voice } from './voice.js';
 import { Hud } from './hud.js';
 import { sfx, music, setVolumes } from './audio.js';
 import { settings, onSettings, setSetting } from './settings.js';
@@ -59,6 +60,7 @@ function applyQuality(q) {
 const input = new Input(renderer.domElement);
 const hud = new Hud();
 const net = new Net();
+const voice = new Voice(net, { onChange: () => refreshRoster(), toast: (key) => hud.toast(t(key)) });
 setupTouch(input);
 
 const soundBtn = document.getElementById('sound-btn');
@@ -100,6 +102,7 @@ setupMenus({
   inGame: () => state.joined,
   onInvite: () => hud.copyInvite(),
   onLeave: () => {
+    voice.leave();
     net.ws?.close();
     location.href = `${location.origin}/`;
   },
@@ -274,6 +277,7 @@ net.on('welcome', (m) => {
   link = { code: m.code, mode: link?.code === m.code ? link.mode : joinMode, key: m.key, ticket: link?.code === m.code ? link.ticket : null };
   state.myId = m.id;
   state.myTeam = m.team;
+  voice.join(m.id, { tutorial: !!m.tutorial, isPublic: !!m.isPublic });
   if (state.joined) return; // a reconnect: we're already in the game
   world.sand.clear();
   world.resetCrowd();
@@ -318,7 +322,7 @@ net.on('roster', (m) => {
   }
   state.room = { players: m.players, host: m.host, cpu: m.cpu, teamSize: m.teamSize, rules: m.rules, ball: m.ball, isPublic: m.isPublic, myId: state.myId };
   ballView.setSkin(m.ball ?? 'classic');
-  refreshRoster();
+  voice.roster(m.players);
 });
 net.on('notice', (m) => hud.toast(m.code ? t(`err.${m.code}`) : m.msg));
 
@@ -402,7 +406,7 @@ function currentPings() {
   return pings;
 }
 function refreshRoster() {
-  if (state.room) hud.roster(state.room.players, state.myId, currentPings());
+  if (state.room) hud.roster(state.room.players, state.myId, currentPings(), voice);
 }
 net.on('error', (m) => {
   joinWait?.(m.code);
@@ -424,6 +428,7 @@ let reconnecting = false;
 net.on('ticket', (m) => link && (link.ticket = m.ticket));
 addEventListener('pagehide', () => {
   leaving = true;
+  voice.leave();
   net.send({ t: 'leave' }); // frees our spot right away instead of holding it
 });
 
@@ -627,6 +632,24 @@ hud.on('team', (d) => net.send({ t: 'team', team: Number(d.team) }));
 hud.on('format', (d) => net.send({ t: 'format', teamSize: Number(d.size) }));
 hud.on('cpu', () => net.send({ t: 'cpu', on: !state.room?.cpu }));
 hud.on('start', () => net.send({ t: 'start' }));
+hud.on('mute', (d) => voice.toggleMute(Number(d.id)));
+
+// Mic button: tap to turn the mic on/off; in push-to-talk mode, hold it to talk.
+const voiceBtn = document.getElementById('voice-btn');
+let voiceHeld = false;
+voiceBtn.addEventListener('pointerdown', (e) => {
+  if (settings.micMode !== 'ptt' || !voice.mic) return;
+  voiceBtn.setPointerCapture(e.pointerId);
+  voiceHeld = true;
+  voice.hold(+1);
+});
+const releaseVoice = () => voiceHeld && ((voiceHeld = false), voice.hold(-1));
+voiceBtn.addEventListener('pointerup', releaseVoice);
+voiceBtn.addEventListener('pointercancel', releaseVoice);
+voiceBtn.addEventListener('click', () => {
+  voiceBtn.blur(); // keep Space/Enter for the game
+  voice.toggleMic();
+});
 hud.on('rules', (d) => {
   const n = Number(d.n);
   net.send({ t: 'rules', rules: d.mode === 'time' ? { mode: 'time', minutes: n } : { mode: 'points', points: n } });
@@ -997,7 +1020,9 @@ function updateGame(realDt, now) {
   // HUD
   hud.touches(state.touches, state.phase === 'rally' && state.lastTeam === state.myTeam);
   hud.clock(state.clock, state.suddenDeath, state.room?.rules, state.phase !== 'lobby' && !tutorial);
-  hud.prematch(state.phase === 'lobby' && !tutorial, state.room && { ...state.room, myId: state.myId, pings: currentPings() });
+  hud.prematch(state.phase === 'lobby' && !tutorial, state.room && { ...state.room, myId: state.myId, pings: currentPings(), voice });
+  voice.update();
+  hud.micButton(voice.active, voice.micState, voice.speaking.has(state.myId));
   tutorial?.update(realDt);
   hud.controls(input.device);
   const prompt = contextPrompt(serving, bs, forward);
@@ -1130,4 +1155,4 @@ onSettings((st) => {
 for (const b of document.querySelectorAll('#lang-switch button')) b.onclick = () => setSetting('lang', b.dataset.value);
 
 // Handy for poking at the game from the browser console.
-window.volley = { state, me, camera, renderer, scene, world, music, net, sfx };
+window.volley = { state, me, camera, renderer, scene, world, music, net, sfx, voice };

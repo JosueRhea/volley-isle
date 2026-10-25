@@ -9,6 +9,7 @@ import { Room } from './room.js';
 import { attach, admit, rejectSocket, roomOptions, MAX_HUMANS, EMPTY_ROOM_S } from './session.js';
 import { newCode, CODE_RE } from './codes.js';
 import { originAllowed, verifyTurnstile, signTicket, verifyTicket, listFrom, JOIN_MODES, REJOIN_TTL_MS, rejoinMode, baseMode } from './gate.js';
+import { iceServers } from './ice.js';
 import { TICK_HZ, SNAPSHOT_HZ } from '../shared/constants.js';
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
@@ -62,6 +63,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/health') return json(res, { ok: true, rooms: rooms.size });
   if (url.pathname === '/api/config') return json(res, { turnstileSiteKey: GATE.siteKey });
   if (url.pathname === '/api/join') return join(req, res);
+  if (url.pathname === '/api/ice') return ice(req, res);
 
   let file;
   try {
@@ -123,6 +125,13 @@ function join(req, res) {
     if (!CODE_RE.test(code)) return fail(res, 404, 'roomNotFound');
     json(res, { code, ticket: await signTicket(GATE.ticketSecret, code, mode) });
   });
+}
+
+// STUN/TURN servers for voice chat.
+async function ice(req, res) {
+  if (!originAllowed(req.headers.origin, GATE.origins)) return fail(res, 403, 'origin');
+  if (rateLimited(req)) return fail(res, 429, 'rateLimited');
+  json(res, { iceServers: await iceServers(process.env.TURN_KEY_ID, process.env.TURN_KEY_API_TOKEN) });
 }
 
 // WebSockets connect to /ws/<CODE>?mode=quick|create|tutorial|code&ticket=…

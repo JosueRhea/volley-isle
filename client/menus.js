@@ -100,6 +100,7 @@ export function setupMenus({ input, inGame, onLeave, onInvite }) {
       [glyph(d, 'tip'), t('help.tip')],
       ['<span class="glyph keyboard">Esc</span>', t('help.menu')],
       ['<span class="glyph keyboard">M</span>', t('help.music')],
+      ['<span class="glyph keyboard">V</span>', t('help.ptt')],
     ];
     $('help-controls').innerHTML = rows.map(([g, label]) => `<div>${g}</div><div>${label}</div>`).join('');
   }

@@ -14,6 +14,9 @@ const cleanSpecies = (c) => (Number.isInteger(c) && c >= 0 && c < CHARACTERS.len
 const MSG_RATE = 60; // per second
 const MSG_BURST = 120;
 const MAX_DROPPED = 300;
+// Voice chat signaling carries WebRTC session descriptions, which are bigger than game messages.
+const MAX_TEXT = 2048;
+const MAX_RTC_TEXT = 12000;
 const send = (ws, msg) => ws.readyState === 1 && ws.send(JSON.stringify(msg));
 
 // Rooms are created/found by the host before the socket is attached; mode comes from the connect URL:
@@ -69,13 +72,14 @@ export function attach(ws, room, { onJoin, onLeave, rejoinTicket } = {}) {
     }
     tokens -= 1;
     const text = typeof raw === 'string' ? raw : raw.toString();
-    if (text.length > 2048) return;
+    if (text.length > MAX_RTC_TEXT) return;
     let m;
     try {
       m = JSON.parse(text);
     } catch {
       return;
     }
+    if (m?.t !== 'rtc' && text.length > MAX_TEXT) return;
     switch (m.t) {
       case 'in':
         if (player) room.handleInput(player, m);
@@ -109,6 +113,12 @@ export function attach(ws, room, { onJoin, onLeave, rejoinTicket } = {}) {
         break;
       case 'drill':
         if (player) room.drill(player, String(m.kind)), room.markActive(player);
+        break;
+      case 'voice': // joined or left voice chat
+        if (player) room.setVoice(player, m.on);
+        break;
+      case 'rtc': // voice chat signaling, passed straight to one other player in the room
+        if (player) room.relayRtc(player, m.to, m.d);
         break;
       case 'leave': // leaving on purpose: free the spot now instead of holding it
         if (player) player.gone = true;
