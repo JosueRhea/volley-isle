@@ -4,6 +4,8 @@ import { TEAM_COLORS } from './teams.js';
 import { BALL_SKINS } from './scene/ball.js';
 
 const $ = (id) => document.getElementById(id);
+const FEED_MAX = 5;
+const FEED_MS = 6000;
 const ico = (name) => `<svg class="ico"><use href="#i-${name}" /></svg>`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -290,9 +292,26 @@ export class Hud {
     $('cinema').classList.toggle('on', on);
   }
 
-  pop(text) {
+  // Play-by-play line under the roster ("A blocked B"). a/b: { name, team }; the row is tinted
+  // with tint's team color (the acting player's by default); icon picks #i-<icon> from the sprite. Keeps the last few, each fades out on its own.
+  feed(icon, key, a, b, tint = a.team) {
+    const who = (p) => `<span class="who" style="--pc:${TEAM_COLORS[p.team]?.css ?? 'inherit'}">${esc(p.name)}</span>`;
     const el = document.createElement('div');
-    el.className = 'pop';
+    el.className = 'feed-row';
+    el.style.setProperty('--c', TEAM_COLORS[tint]?.css ?? 'var(--ink)');
+    el.innerHTML = `<span class="fi">${ico(icon)}</span><span class="ft">${t(key, { a: who(a), b: b ? who(b) : '' })}</span>`;
+    const box = $('feed');
+    box.appendChild(el);
+    while (box.children.length > FEED_MAX) box.firstChild.remove();
+    setTimeout(() => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 400);
+    }, FEED_MS);
+  }
+
+  pop(text, cls = '') {
+    const el = document.createElement('div');
+    el.className = cls ? `pop ${cls}` : 'pop';
     el.textContent = text;
     $('hud').appendChild(el);
     setTimeout(() => el.remove(), 900);

@@ -6,7 +6,8 @@ const SPIKE_CAM_TIME = 0.9; // real seconds the spike cam holds before handing b
 // Picks a shot every frame and eases the real camera toward it.
 //   play      – behind your baseline, framing you + the ball, pushing out as the ball climbs
 //   serve     – low over-the-shoulder when you're serving
-//   spike     – hard cut to a low side angle on the spiker, then tracks the ball in slow-mo
+//   spike     – hard cut to a slow-mo shot of the spiker, always from your half so left/right never flips:
+//               over the spiker's shoulder when your team attacks, a defender's view across the net when they do
 //   celebrate – slow orbit around the team that just scored
 export class CameraDirector {
   constructor(camera) {
@@ -21,6 +22,7 @@ export class CameraDirector {
     this.anchor = new THREE.Vector3();
     this.spikeTeam = 0;
     this.spikeSide = 1;
+    this.spikeMine = true;
     this.orbit = null;
     this.P = new THREE.Vector3();
     this.L = new THREE.Vector3();
@@ -34,11 +36,12 @@ export class CameraDirector {
     this.fov = this.cam.fov;
   }
 
-  spike(pos, team) {
+  spike(pos, team, myTeam) {
     this.mode = 'spike';
     this.t = 0;
     this.anchor.copy(pos);
     this.spikeTeam = team;
+    this.spikeMine = team === myTeam;
     this.spikeSide = pos.z >= 0 ? 1 : -1;
     this.spikeShot(0);
     this.pos.copy(this.P); // hard cut
@@ -51,11 +54,17 @@ export class CameraDirector {
     this.shake = Math.max(this.shake, power);
   }
 
-  // Low, beside and behind the spiker; dollies toward the net and widens as the ball flies.
   spikeShot(t) {
     const sT = sideSign(this.spikeTeam);
     const a = this.anchor;
-    this.P.set(a.x + sT * (3.4 - t * 2.6), Math.max(0.9, a.y - 0.5 + t * 0.6), a.z + this.spikeSide * (5.4 + t * 1.2));
+    if (this.spikeMine) {
+      // Low, behind and beside the spiker; dollies toward the net as the ball flies away from you.
+      this.P.set(a.x + sT * (4.2 - t * 2.2), Math.max(0.9, a.y - 0.6 + t * 0.6), a.z + this.spikeSide * (2.6 + t * 0.8));
+    } else {
+      // From your half, looking back across the net at the spiker; backs off as the ball comes at you.
+      // High enough to see over the net tape, and off to one side so the ball doesn't fly through the lens.
+      this.P.set(-sT * (5.5 + t * 3), 2.7 + t * 0.4, a.z * 0.5 + this.spikeSide * (2.2 + t * 1.2));
+    }
   }
 
   // ctx: { myTeam, me, meVel, ball, phase, phaseTime, servingMe, winners: Vector3[], scoringTeam }
@@ -75,7 +84,7 @@ export class CameraDirector {
       const k = this.t / SPIKE_CAM_TIME;
       this.spikeShot(k);
       L.lerpVectors(this.anchor, ctx.ball, Math.min(1, k * 2.5));
-      fov = 38 + k * 14;
+      fov = 38 + k * (this.spikeMine ? 14 : 20);
       posK = 10;
       lookK = 12;
     } else if (celebrating) {

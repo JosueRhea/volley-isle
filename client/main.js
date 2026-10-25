@@ -91,6 +91,7 @@ onSettings((st) => {
   setVolumes({ master: st.master, music: st.music, sfx: st.sfx, musicOn: st.musicOn, sfxOn: st.sfxOn });
   applyQuality(st.quality);
   syncSound();
+  document.getElementById('hud').classList.toggle('simple', st.simpleHud);
 });
 
 // Leaving drops the connection (the server hands your spot back to a CPU) and returns to the title.
@@ -211,6 +212,7 @@ const state = {
   tsView: 1, // smoothed copy used for local simulation and animation
   phaseAt: 0,
   lastHitKind: null,
+  lastHitId: null, // who touched the ball last (for the play-by-play feed)
   room: null, // latest roster: { players, host, cpu, teamSize }
 };
 const me = { x: 0, y: 0, z: 0, vy: 0, ry: 0, mx: 0, mz: 0, hitCount: 0, diveT: -1, charge: -1, servePower: 0.6 };
@@ -486,6 +488,21 @@ function floatAt(text, x, y, z, cls) {
   if (!p.behind) hud.float(text, p.x, p.y, cls);
 }
 
+// Play-by-play feed: only real match plays, not warm-up touches in the lobby or the tutorial.
+// a / b: a player id, or { team } to name a whole team. The row is tinted with tint (default: a's team).
+function feedRef(x) {
+  if (x == null) return null;
+  if (typeof x === 'object') return { name: teamName(x.team), team: x.team };
+  const info = state.players.get(x)?.info;
+  return info && { name: info.name, team: info.team };
+}
+function logPlay(icon, key, a, b = null, tint) {
+  if (tutorial || state.phase === 'lobby') return;
+  const ra = feedRef(a);
+  if (ra) hud.feed(icon, key, ra, feedRef(b), tint ?? ra.team);
+}
+const teamOf = (id) => state.players.get(id)?.info.team;
+
 function handleEvent(ev) {
   tutorial?.onEvent(ev);
   if (ev.k === 'hit') {
@@ -493,15 +510,27 @@ function handleEvent(ev) {
     effects.burst(new THREE.Vector3(ev.x, ev.y, ev.z), ev.kind);
     ballView.impact(ev.kind === 'spike' || ev.kind === 'block' ? 1 : .55);
     const prevKind = state.lastHitKind;
+    const prevId = state.lastHitId;
     state.lastHitKind = ev.kind;
+    state.lastHitId = ev.id;
     const p = state.players.get(ev.id);
+    // The touch before this one came from the other side: that's who got blocked / whose attack got saved.
+    const rivalId = prevId != null && teamOf(prevId) !== p?.info.team ? prevId : null;
+    if (ev.kind === 'spike') logPlay('kill', 'feed.spike', ev.id);
+    if (ev.kind === 'block') logPlay('block', rivalId != null ? 'feed.block' : 'feed.blockSolo', ev.id, rivalId);
+    if (ev.kind === 'dig') {
+      const fromSpike = rivalId != null && prevKind === 'spike';
+      logPlay('save', fromSpike ? 'feed.saveFrom' : 'feed.save', ev.id, fromSpike ? rivalId : null);
+    }
     world.react(ev.kind, p?.info.team ?? -1);
     sfx.crowdReact(ev.kind, { prev: prevKind });
     if (ev.kind === 'spike') {
       state.tsView = state.ts = 0.2; // start the slow-mo right away; snapshots keep it in sync
-      director.spike(new THREE.Vector3(ev.x, ev.y, ev.z), p?.info.team ?? 0);
+      const team = p?.info.team ?? 0;
+      const rival = team !== state.myTeam;
+      director.spike(new THREE.Vector3(ev.x, ev.y, ev.z), team, state.myTeam);
       sfx.slowmo();
-      hud.pop(t('call.spike'));
+      hud.pop(t(rival ? 'call.spikeRival' : 'call.spike'), rival ? 'rival' : '');
       hud.cinema(true);
     }
     if (p && ev.id !== state.myId) {
@@ -552,12 +581,27 @@ function handleEvent(ev) {
     sfx.net(ev.cord, spatial(0, ev.y, ev.z));
     sfx.crowdReact(ev.cord ? 'cord' : 'net');
     world.net.impulse(ev.z, ev.y, Math.min(ev.v, 22) * (ev.cord ? 0.9 : 1.65), ev.dir || 1);
-    if (ev.cord) floatAt(t('call.netCord'), 0, ev.y + 0.8, ev.z, '');
+    if (ev.cord) {
+      floatAt(t('call.netCord'), 0, ev.y + 0.8, ev.z, '');
+      logPlay('net', 'feed.netCord', state.lastHitId);
+    }
   } else if (ev.k === 'point') {
     sfx.whistle();
     const kill = ev.reason === 'in' && state.lastHitKind === 'spike';
     const sneaky = ev.reason === 'in' && state.lastHitKind === 'tip';
     const stuffed = ev.reason === 'in' && state.lastHitKind === 'block';
+    const ace = ev.reason === 'in' && state.lastHitKind === 'serve';
+    // One feed line per point, credited to whoever's last touch decided it.
+    const last = state.lastHitId;
+    const won = { team: ev.team };
+    if (ev.reason === 'touches') logPlay('fault', 'feed.touches', { team: 1 - ev.team }, won, ev.team);
+    else if (ev.reason === 'out' && last != null) logPlay('out', 'feed.out', last, won, ev.team);
+    else if (last == null || teamOf(last) !== ev.team) logPlay('ball', 'feed.pointTeam', won);
+    else if (kill) logPlay('kill', 'feed.kill', last);
+    else if (ace) logPlay('ace', 'feed.ace', last);
+    else if (sneaky) logPlay('tip', 'feed.tip', last);
+    else if (stuffed) logPlay('block', 'feed.stuff', last);
+    else logPlay('ball', 'feed.point', last);
     if (ev.reason === 'in' || ev.reason === 'out') { effects.sandImpact(ev.x, ev.z, kill ? 1 : .55);ballView.impact(kill ? 1 : .6); }
     if (ev.reason === 'in' || ev.reason === 'out') world.sand.impact(ev.x, ev.z, kill);
     if (kill) {
